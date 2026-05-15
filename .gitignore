@@ -1,0 +1,94 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Xcode
+DerivedData/
+.build/
+*.pbxuser
+!default.pbxuser
+*.mode1v3
+!default.mode1v3
+*.mode2v3
+!default.mode2v3
+*.perspectivev3
+!default.perspectivev3
+xcuserdata/
+*.xccheckout
+*.moved-aside
+*.xcuserstate
+
+# Swift Package Manager
+.swiftpm/
+Packages/
+
+# Archives / Release
+*.xcarchive
+*.dSYM.zip
+*.dSYM
+*.ipa
+*.pkg
+*.dmg
+*.zip
+
+# Android / Gradle
+.gradle/
+build/
+*/build/
+local.properties
+captures/
+.externalNativeBuild/
+.cxx/
+.kotlin/
+
+# Android Studio / IntelliJ
+.idea/
+*.iml
+out/
+
+# APK / Bundle
+*.apk
+*.aab
+*.ap_
+output.json
+
+# Logs
+*.log
+
+# Environment / Secrets
+.env
+.env.*
+*.keystore
+*.jks
+*.p12
+*.mobileprovision
+GoogleService-Info.plist
+google-services.json
+
+# Firebase / Crashlytics
+crashlytics.properties
+fabric.properties
+
+# Fastlane
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots/
+fastlane/test_output/
+
+# Temporary
+tmp/
+temp/
+
+# Node
+node_modules/
+
+# VSCode
+.vscode/
+
+# Linux
+*~
+
+# Windows
+Thumbs.db
+Desktop.ini
