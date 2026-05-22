@@ -28,6 +28,10 @@ final class LocalNotificationServer: ObservableObject {
     @Published var pairingCompleted: Bool = UserDefaults.standard.bool(forKey: "pairingCompleted")
     @Published var lastClientAddress: String = UserDefaults.standard.string(forKey: "lastClientAddress") ?? ""
     @Published var lastConnectionDate: Date? = UserDefaults.standard.object(forKey: "lastConnectionDate") as? Date
+    @Published var lastClientName: String = UserDefaults.standard.string(forKey: "lastClientName") ?? ""
+    
+    @Published var pairingCode: String = UUID().uuidString
+    private var pairingCodeCreatedAt = Date()
 
     /// Human-readable relative time for the most recent Android client connection.
     var lastConnectionText: String? {
@@ -46,16 +50,17 @@ final class LocalNotificationServer: ObservableObject {
     
     /// Encoded pairing payload shown as a QR code in the Mac app.
     var pairingQRCodeText: String {
-        let payload = PairingPayload(
-            type: "notifybridge_pairing",
-            host: pairingHost,
-            port: 8787,
-            secret: pairingToken,
-            name: Host.current().localizedName ?? String(localized: "default_mac_name")
-        )
+        let macName = Host.current().localizedName ?? String(localized: "default_mac_name")
 
-        let data = try? JSONEncoder().encode(payload)
-        return String(data: data ?? Data(), encoding: .utf8) ?? ""
+        var components = URLComponents(string: "https://www.alpwarestudio.com/notifybridge/pair")
+        components?.queryItems = [
+            URLQueryItem(name: "host", value: pairingHost),
+            URLQueryItem(name: "port", value: "8787"),
+            URLQueryItem(name: "code", value: pairingCode),
+            URLQueryItem(name: "name", value: macName)
+        ]
+
+        return components?.url?.absoluteString ?? ""
     }
 
     private let port: NWEndpoint.Port = 8787
@@ -154,6 +159,11 @@ final class LocalNotificationServer: ObservableObject {
             sendBadRequest(connection)
             return
         }
+        
+        if requestText.hasPrefix("POST /pair") {
+            handlePairRequest(requestText: requestText, connection: connection)
+            return
+        }
 
         guard requestText.hasPrefix("POST /notify") else {
             sendNotFound(connection)
@@ -208,8 +218,9 @@ final class LocalNotificationServer: ObservableObject {
 
             print("Received notification:", payload)
 
+            markPairingCompleted(connection: connection, deviceName: payload.deviceName)
+
             if notificationsEnabled {
-                markPairingCompleted(connection: connection)
                 presenter.show(payload: payload)
             } else {
                 print("Notification received but Mac notifications are disabled.")
@@ -225,7 +236,10 @@ final class LocalNotificationServer: ObservableObject {
     }
     
     /// Persists pairing state after the first valid notification request is received.
-    private func markPairingCompleted(connection: NWConnection) {
+    private func markPairingCompleted(
+        connection: NWConnection,
+        deviceName: String?
+    ) {
         let address: String
 
         switch connection.endpoint {
@@ -238,10 +252,14 @@ final class LocalNotificationServer: ObservableObject {
         DispatchQueue.main.async {
             self.pairingCompleted = true
             self.lastClientAddress = address
+            self.lastClientName = deviceName?.isEmpty == false
+                ? deviceName!
+                : address
             self.lastConnectionDate = Date()
 
             UserDefaults.standard.set(true, forKey: "pairingCompleted")
             UserDefaults.standard.set(address, forKey: "lastClientAddress")
+            UserDefaults.standard.set(self.lastClientName, forKey: "lastClientName")
             UserDefaults.standard.set(Date(), forKey: "lastConnectionDate")
         }
     }
@@ -265,6 +283,18 @@ final class LocalNotificationServer: ObservableObject {
         Content-Length: 11\r
         \r
         Bad Request
+        """
+
+        send(response, connection: connection)
+    }
+    
+    private func sendJson(_ json: String, connection: NWConnection) {
+        let response = """
+        HTTP/1.1 200 OK\r
+        Content-Type: application/json\r
+        Content-Length: \(json.utf8.count)\r
+        \r
+        \(json)
         """
 
         send(response, connection: connection)
@@ -355,6 +385,55 @@ final class LocalNotificationServer: ObservableObject {
             .dropFirst(prefix.count)
             .trimmingCharacters(in: .whitespacesAndNewlines)
     }
+    
+    private func handlePairRequest(requestText: String, connection: NWConnection) {
+        guard let bodyRange = requestText.range(of: "\r\n\r\n") else {
+            sendBadRequest(connection)
+            return
+        }
+
+        let body = String(requestText[bodyRange.upperBound...])
+
+        guard let bodyData = body.data(using: .utf8),
+              let request = try? JSONDecoder().decode(PairingRequest.self, from: bodyData) else {
+            sendBadRequest(connection)
+            return
+        }
+
+        guard request.code == pairingCode else {
+            sendUnauthorized(connection)
+            return
+        }
+
+        let age = Date().timeIntervalSince(pairingCodeCreatedAt)
+        guard age < 120 else {
+            rotatePairingCode()
+            sendUnauthorized(connection)
+            return
+        }
+
+        let response = PairingResponse(
+            type: "notifybridge_pairing_response",
+            host: pairingHost,
+            port: 8787,
+            secret: pairingToken,
+            name: Host.current().localizedName ?? String(localized: "default_mac_name")
+        )
+
+        guard let responseData = try? JSONEncoder().encode(response),
+              let responseJson = String(data: responseData, encoding: .utf8) else {
+            sendBadRequest(connection)
+            return
+        }
+
+        rotatePairingCode()
+        sendJson(responseJson, connection: connection)
+    }
+
+    private func rotatePairingCode() {
+        pairingCode = UUID().uuidString
+        pairingCodeCreatedAt = Date()
+    }
 
     /// Clears the paired device state and rotates the pairing token.
     func resetPairing() {
@@ -364,10 +443,17 @@ final class LocalNotificationServer: ObservableObject {
         pairingCompleted = false
         lastClientAddress = ""
         lastConnectionDate = nil
+        lastClientName = ""
 
         UserDefaults.standard.set(token, forKey: "pairingToken")
         UserDefaults.standard.set(false, forKey: "pairingCompleted")
         UserDefaults.standard.removeObject(forKey: "lastClientAddress")
         UserDefaults.standard.removeObject(forKey: "lastConnectionDate")
+        UserDefaults.standard.removeObject(forKey: "lastClientName")
     }
+}
+
+struct PairingRequest: Codable {
+    let code: String
+    let deviceName: String?
 }

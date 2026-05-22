@@ -4,6 +4,7 @@ import android.Manifest
 import android.annotation.SuppressLint
 import android.content.ComponentName
 import android.content.Intent
+import android.content.pm.ResolveInfo
 import android.content.pm.PackageManager
 import android.graphics.Color
 import android.os.Build
@@ -27,11 +28,15 @@ import com.alpware.notifybridge.network.SendResult
 import com.alpware.notifybridge.notification.NotifyBridgeNotificationListener
 import com.alpware.notifybridge.pairing.PairingPayload
 import com.alpware.notifybridge.service.BridgeServiceController
-import com.google.gson.Gson
 import com.journeyapps.barcodescanner.ScanContract
 import com.journeyapps.barcodescanner.ScanOptions
 import androidx.core.net.toUri
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import com.alpware.notifybridge.core.AppFilterStore
+import com.alpware.notifybridge.core.PrivacyStore
+import com.alpware.notifybridge.model.InstalledAppItem
+import com.alpware.notifybridge.network.PairingClient
+import com.alpware.notifybridge.ui.AppFilterScreen
 import com.alpware.notifybridge.ui.HomeScreen
 import com.alpware.notifybridge.ui.SettingsScreen
 import com.alpware.notifybridge.ui.theme.NotifyBridgeTheme
@@ -41,6 +46,7 @@ import com.alpware.notifybridge.ui.theme.NotifyBridgeTheme
  */
 class MainActivity : ComponentActivity() {
 
+    // UI state values mirrored from permissions, preferences, and pairing status.
     private val hasNotificationAccessState = mutableStateOf(false)
     private val bridgeEnabledState = mutableStateOf(false)
     private val sendResultState = mutableStateOf<SendResult?>(null)
@@ -50,33 +56,64 @@ class MainActivity : ComponentActivity() {
     private val cameraPermissionGrantedState = mutableStateOf(false)
     private var macDiscoveryManager: MacDiscoveryManager? = null
     private val currentScreenState = mutableStateOf(AppScreen.Home)
+    private val installedAppsState = mutableStateOf<List<InstalledAppItem>>(emptyList())
+    private val showNotificationContentState = mutableStateOf(true)
+    private val sendAllAppsState = mutableStateOf(true)
 
     // Handles QR pairing results produced by the camera scanner.
     private val qrScannerLauncher = registerForActivityResult(ScanContract()) { result ->
         val contents = result.contents ?: return@registerForActivityResult
 
         runCatching {
-            Gson().fromJson(contents, PairingPayload::class.java)
+            parsePairingQr(contents)
         }.onSuccess { payload ->
-            if (payload.type == "notifybridge_pairing") {
-                MacConnectionStore.setMacIp(this, payload.host)
-                MacConnectionStore.setMacPort(this, payload.port.toString())
-                MacConnectionStore.setPairingToken(this, payload.secret)
-                MacConnectionStore.setMacName(this, payload.name?.takeIf { it.isNotBlank() } ?: payload.host)
-                sendResultState.value = SendResult.Success
-            } else {
-                sendResultState.value = SendResult.Error(getString(R.string.qr_pairing_error_invalid_code))
+            sendResultState.value = SendResult.Loading
+
+            PairingClient.pair(
+                host = payload.host,
+                port = payload.port,
+                code = payload.code
+            ) { result ->
+                runOnUiThread {
+                    result.onSuccess { response ->
+                        if (response.type == "notifybridge_pairing_response") {
+                            MacConnectionStore.setMacIp(this, response.host)
+                            MacConnectionStore.setMacPort(this, response.port.toString())
+                            MacConnectionStore.setPairingToken(this, response.secret)
+                            MacConnectionStore.setMacName(
+                                this,
+                                response.name.ifBlank { payload.name ?: response.host }
+                            )
+
+                            NotificationSender.sendTest(this) { sendResult ->
+                                runOnUiThread {
+                                    sendResultState.value = sendResult
+                                }
+                            }
+                        } else {
+                            sendResultState.value = SendResult.Error(
+                                getString(R.string.qr_pairing_error_invalid_response)
+                            )
+                        }
+                    }.onFailure {
+                        sendResultState.value = SendResult.Error(
+                            it.message ?: getString(R.string.qr_pairing_error_pairing_failed)
+                        )
+                    }
+                }
             }
         }.onFailure {
             sendResultState.value = SendResult.Error(getString(R.string.qr_pairing_error_read_failed))
         }
     }
 
+    // Refreshes permission-dependent state after the notification permission dialog closes.
     private val notificationPermissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) {
             refreshStates()
         }
 
+    // Refreshes camera permission state after the runtime permission dialog closes.
     private val cameraPermissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) {
             refreshStates()
@@ -92,6 +129,7 @@ class MainActivity : ComponentActivity() {
 
         refreshStates()
 
+        // Keep the latest Mac discovery result available for the UI.
         macDiscoveryManager = MacDiscoveryManager(this) { result ->
             runOnUiThread {
                 discoveryResultState.value = result
@@ -113,6 +151,7 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             NotifyBridgeTheme {
+                // Switch between top-level Compose screens without a navigation framework.
                 when (currentScreenState.value) {
                     AppScreen.Home -> {
                         HomeScreen(
@@ -156,9 +195,18 @@ class MainActivity : ComponentActivity() {
                             onOpenNotificationSettings = {
                                 openNotificationAccessSettings()
                             },
+                            showNotificationContent = showNotificationContentState.value,
+                            onShowNotificationContentChanged = { enabled ->
+                                PrivacyStore.setShowNotificationContent(this, enabled)
+                                refreshStates()
+                            },
                             onOpenSettings = {
                                 currentScreenState.value = AppScreen.Settings
                             },
+                            onOpenAppFilters = {
+                                currentScreenState.value = AppScreen.AppFilters
+                            },
+                            selectedAppFilterCount = AppFilterStore.getSelectedPackages(this).size,
                             onResetPairing = {
                                 MacConnectionStore.setMacIp(this, "")
                                 MacConnectionStore.setMacPort(this, "8787")
@@ -201,11 +249,33 @@ class MainActivity : ComponentActivity() {
                             }
                         )
                     }
+
+                    AppScreen.AppFilters -> {
+                        AppFilterScreen(
+                            apps = installedAppsState.value,
+                            sendAllApps = sendAllAppsState.value,
+                            onBack = {
+                                currentScreenState.value = AppScreen.Home
+                            },
+                            onSendAllAppsChanged = { enabled ->
+                                AppFilterStore.setSendAllApps(this, enabled)
+                                if (enabled) AppFilterStore.clearSelectedApps(this)
+                                refreshStates()
+                            },
+                            onAppFilterChanged = { packageName, enabled ->
+                                AppFilterStore.setAppEnabled(this, packageName, enabled)
+                                refreshStates()
+                            }
+                        )
+                    }
                 }
             }
         }
     }
 
+    /**
+     * Re-checks external permission and settings changes when the app returns to foreground.
+     */
     override fun onResume() {
         super.onResume()
         refreshStates()
@@ -216,20 +286,18 @@ class MainActivity : ComponentActivity() {
      */
     private fun refreshStates() {
         hasNotificationAccessState.value = hasNotificationAccess()
-
-        bridgeEnabledState.value =
-            BridgeStateStore.isBridgeEnabled(this)
-
-        batteryOptimizationIgnoredState.value =
-            isIgnoringBatteryOptimizations()
-
-        postNotificationPermissionGrantedState.value =
-            isPostNotificationPermissionGranted()
-
-        cameraPermissionGrantedState.value =
-            isCameraPermissionGranted()
+        bridgeEnabledState.value = BridgeStateStore.isBridgeEnabled(this)
+        batteryOptimizationIgnoredState.value = isIgnoringBatteryOptimizations()
+        postNotificationPermissionGrantedState.value = isPostNotificationPermissionGranted()
+        cameraPermissionGrantedState.value = isCameraPermissionGranted()
+        installedAppsState.value = loadInstalledApps()
+        showNotificationContentState.value = PrivacyStore.shouldShowNotificationContent(this)
+        sendAllAppsState.value = AppFilterStore.shouldSendAllApps(this)
     }
 
+    /**
+     * Returns whether runtime notification permission is granted on supported Android versions.
+     */
     private fun isPostNotificationPermissionGranted(): Boolean {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return true
 
@@ -239,6 +307,9 @@ class MainActivity : ComponentActivity() {
         ) == PackageManager.PERMISSION_GRANTED
     }
 
+    /**
+     * Returns whether the camera permission required for QR pairing is granted.
+     */
     private fun isCameraPermissionGranted(): Boolean {
         return ContextCompat.checkSelfPermission(
             this,
@@ -246,6 +317,9 @@ class MainActivity : ComponentActivity() {
         ) == PackageManager.PERMISSION_GRANTED
     }
 
+    /**
+     * Opens Android settings where the user can enable notification listener access.
+     */
     private fun openNotificationAccessSettings() {
         startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
     }
@@ -283,9 +357,38 @@ class MainActivity : ComponentActivity() {
             .setDesiredBarcodeFormats(ScanOptions.QR_CODE)
             .setPrompt(getString(R.string.qr_pairing_scanner_prompt))
             .setBeepEnabled(false)
-            .setOrientationLocked(false)
+            .setOrientationLocked(true)
 
         qrScannerLauncher.launch(options)
+    }
+
+    /**
+     * Parses and validates a NotifyBridge pairing QR payload.
+     */
+    private fun parsePairingQr(contents: String): PairingPayload {
+        val uri = contents.toUri()
+
+        if (uri.scheme != "https" || uri.host != "www.alpwarestudio.com") {
+            error(getString(R.string.qr_pairing_error_invalid_qr))
+        }
+
+        if (uri.path != "/notifybridge/pair") {
+            error(getString(R.string.qr_pairing_error_invalid_qr))
+        }
+
+        val host = uri.getQueryParameter("host")
+            ?: error(getString(R.string.qr_pairing_error_missing_host))
+        val port = uri.getQueryParameter("port")?.toIntOrNull() ?: 8787
+        val code = uri.getQueryParameter("code")
+            ?: error(getString(R.string.qr_pairing_error_missing_code))
+        val name = uri.getQueryParameter("name")
+
+        return PairingPayload(
+            host = host,
+            port = port,
+            code = code,
+            name = name
+        )
     }
 
     /**
@@ -304,6 +407,9 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    /**
+     * Returns whether Android battery optimizations are disabled for this app.
+     */
     private fun isIgnoringBatteryOptimizations(): Boolean {
         val powerManager = getSystemService(POWER_SERVICE) as PowerManager
         return powerManager.isIgnoringBatteryOptimizations(packageName)
@@ -323,6 +429,9 @@ class MainActivity : ComponentActivity() {
         startActivity(intent)
     }
 
+    /**
+     * Requests camera permission when QR pairing cannot start yet.
+     */
     private fun requestCameraPermissionIfNeeded() {
         if (!isCameraPermissionGranted()) {
             cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
@@ -342,10 +451,36 @@ class MainActivity : ComponentActivity() {
     }
 
     /**
+     * Loads launchable installed apps and marks those selected for notification forwarding.
+     */
+    private fun loadInstalledApps(): List<InstalledAppItem> {
+        val selectedPackages = AppFilterStore.getSelectedPackages(this)
+
+        val launcherIntent = Intent(Intent.ACTION_MAIN).apply {
+            addCategory(Intent.CATEGORY_LAUNCHER)
+        }
+
+        return packageManager
+            .queryIntentActivities(launcherIntent, PackageManager.MATCH_DEFAULT_ONLY)
+            .distinctBy { it.activityInfo.packageName }
+            .map { resolveInfo: ResolveInfo ->
+                val packageName = resolveInfo.activityInfo.packageName
+
+                InstalledAppItem(
+                    packageName = packageName,
+                    appName = resolveInfo.loadLabel(packageManager).toString(),
+                    isEnabled = packageName in selectedPackages
+                )
+            }
+            .sortedBy { it.appName.lowercase() }
+    }
+
+    /**
      * Represents the currently visible top-level screen.
      */
     private enum class AppScreen {
         Home,
-        Settings
+        Settings,
+        AppFilters
     }
 }

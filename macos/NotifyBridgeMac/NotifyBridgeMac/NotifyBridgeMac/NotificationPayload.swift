@@ -14,4 +14,7 @@ struct NotificationPayload: Codable {
     let title: String?
     let text: String?
     let postTime: Int64
+    let contentHidden: Bool?
+    let appIconBase64: String?
+    let deviceName: String?
 }

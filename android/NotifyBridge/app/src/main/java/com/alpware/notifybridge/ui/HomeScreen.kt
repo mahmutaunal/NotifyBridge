@@ -71,8 +71,12 @@ fun HomeScreen(
     onSendTestNotification: () -> Unit,
     onScanPairingQr: () -> Unit,
     onOpenNotificationSettings: () -> Unit,
+    showNotificationContent: Boolean,
+    onShowNotificationContentChanged: (Boolean) -> Unit,
     onRequestBatteryOptimizationIgnore: () -> Unit,
     onOpenSettings: () -> Unit,
+    onOpenAppFilters: () -> Unit,
+    selectedAppFilterCount: Int,
     onResetPairing: () -> Unit,
 ) {
     var ipInput by remember { mutableStateOf(macIp) }
@@ -81,10 +85,12 @@ fun HomeScreen(
     var showAdvanced by remember { mutableStateOf(false) }
     var showTestResultDialog by remember { mutableStateOf(false) }
 
+    // A valid pairing requires both a Mac address and a shared pairing token.
     val isPaired = macIp.isNotBlank() && pairingToken.isNotBlank()
     val fallbackMacName = stringResource(R.string.home_default_mac_name)
     val pairedMacName = macName.ifBlank { macIp.ifBlank { fallbackMacName } }
 
+    // Automatically dismiss completed connection test results after a short delay.
     LaunchedEffect(sendResult) {
         when (sendResult) {
             is SendResult.Loading -> {
@@ -135,6 +141,13 @@ fun HomeScreen(
                     onBridgeEnabledChanged = onBridgeEnabledChanged
                 )
 
+                NotificationPreferencesCard(
+                    selectedAppFilterCount = selectedAppFilterCount,
+                    onOpenAppFilters = onOpenAppFilters,
+                    showNotificationContent = showNotificationContent,
+                    onShowNotificationContentChanged = onShowNotificationContentChanged
+                )
+
                 ConnectionCard(
                     hasNotificationAccess = hasNotificationAccess,
                     isPaired = isPaired,
@@ -182,6 +195,9 @@ fun HomeScreen(
     }
 }
 
+/**
+ * Displays the app title, short description, and settings shortcut.
+ */
 @Composable
 private fun HeaderSection(
     onOpenSettings: () -> Unit
@@ -434,6 +450,93 @@ private fun TransferCard(
     }
 }
 
+/**
+ * Groups notification filtering and privacy controls in a single preferences card.
+ */
+@Composable
+private fun NotificationPreferencesCard(
+    selectedAppFilterCount: Int,
+    onOpenAppFilters: () -> Unit,
+    showNotificationContent: Boolean,
+    onShowNotificationContentChanged: (Boolean) -> Unit
+) {
+    Card(
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainer
+        )
+    ) {
+        Column(
+            modifier = Modifier.padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = stringResource(R.string.home_app_filters_title),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold
+                    )
+
+                    Text(
+                        text = if (selectedAppFilterCount == 0) {
+                            stringResource(R.string.home_app_filters_all_apps_description)
+                        } else {
+                            stringResource(
+                                R.string.home_app_filters_selected_apps_description,
+                                selectedAppFilterCount
+                            )
+                        },
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                OutlinedButton(onClick = onOpenAppFilters) {
+                    Text(stringResource(R.string.home_manage_button))
+                }
+            }
+
+            HorizontalDivider()
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = stringResource(R.string.home_notification_content_title),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold
+                    )
+
+                    Text(
+                        text = if (showNotificationContent) {
+                            stringResource(R.string.home_notification_content_visible_description)
+                        } else {
+                            stringResource(R.string.home_notification_content_hidden_description)
+                        },
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                Switch(
+                    checked = showNotificationContent,
+                    onCheckedChange = onShowNotificationContentChanged
+                )
+            }
+        }
+    }
+}
+
+
+/**
+ * Displays a compact visual indicator for connection state.
+ */
 @Composable
 private fun StatusBadge(
     text: String,
@@ -819,6 +922,9 @@ private fun PermissionsCard(
     }
 }
 
+/**
+ * Displays a single permission requirement with its related action.
+ */
 @Composable
 private fun PermissionRow(
     title: String,
@@ -849,6 +955,7 @@ private fun PermissionRow(
         }
     }
 }
+
 /**
  * Explains how notification forwarding works at a high level.
  */

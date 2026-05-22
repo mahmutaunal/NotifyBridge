@@ -17,12 +17,21 @@ import javax.crypto.spec.SecretKeySpec
 /**
  * Sends encrypted notification payloads from Android to the paired Mac device.
  */
+/**
+ * Utility object responsible for sending encrypted notification payloads to the paired Mac device.
+ *
+ * Handles encryption, signing, and HTTP POST delivery with replay protection.
+ */
 object NotificationSender {
 
+    // Shared log tag used for notification delivery operations.
     private const val TAG = "NotifyBridgeSender"
 
     /**
      * Sends a real Android notification payload to the paired Mac in the background.
+     *
+     * @param context Android context for accessing preferences and resources.
+     * @param payload Notification payload to send.
      */
     fun send(context: Context, payload: NotificationPayload) {
         Thread {
@@ -43,6 +52,7 @@ object NotificationSender {
                     return@Thread
                 }
 
+                // Encrypt the notification payload before sending it over the network.
                 val plainJson = Gson().toJson(payload)
                 val encryptedPayload = CryptoManager.encryptAesGcm(
                     secret = pairingToken,
@@ -56,6 +66,7 @@ object NotificationSender {
                 val signingMessage = "$timestamp\n$nonce\n$json"
                 val signature = hmacSha256Base64(pairingToken, signingMessage)
 
+                // Attach signed request metadata for basic request validation.
                 val connection = url.openConnection() as HttpURLConnection
                 connection.requestMethod = "POST"
                 connection.connectTimeout = 3000
@@ -84,6 +95,9 @@ object NotificationSender {
 
     /**
      * Sends a test notification and reports the result back to the UI.
+     *
+     * @param context Android context for accessing preferences and resources.
+     * @param onResult Callback to report sending result.
      */
     fun sendTest(
         context: Context,
@@ -91,12 +105,14 @@ object NotificationSender {
     ) {
         onResult(SendResult.Loading)
 
+        // Creates a local sample payload used to verify Mac connectivity.
         val payload = NotificationPayload(
             packageName = "com.alpware.notifybridge",
             appName = context.getString(R.string.app_name),
             title = context.getString(R.string.notification_test_title),
             text = context.getString(R.string.notification_test_message),
-            postTime = System.currentTimeMillis()
+            postTime = System.currentTimeMillis(),
+            contentHidden = false
         )
 
         Thread {
@@ -117,6 +133,7 @@ object NotificationSender {
                     return@Thread
                 }
 
+                // Reuse the same encryption flow used for real notifications.
                 val plainJson = Gson().toJson(payload)
                 val encryptedPayload = CryptoManager.encryptAesGcm(
                     secret = pairingToken,
@@ -129,6 +146,7 @@ object NotificationSender {
                 val signingMessage = "$timestamp\n$nonce\n$json"
                 val signature = hmacSha256Base64(pairingToken, signingMessage)
 
+                // Attach request verification headers before sending the test payload.
                 val connection = url.openConnection() as HttpURLConnection
                 connection.requestMethod = "POST"
                 connection.connectTimeout = 3000
@@ -170,6 +188,10 @@ object NotificationSender {
 
     /**
      * Creates a Base64 encoded HMAC-SHA256 signature for request verification.
+     *
+     * @param secret Shared secret key for signing.
+     * @param message Message to sign.
+     * @return Base64-encoded HMAC-SHA256 signature string.
      */
     private fun hmacSha256Base64(secret: String, message: String): String {
         val mac = Mac.getInstance("HmacSHA256")

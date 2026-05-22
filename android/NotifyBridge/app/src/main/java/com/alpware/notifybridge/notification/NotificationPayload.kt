@@ -8,5 +8,8 @@ data class NotificationPayload(
     val appName: String?,
     val title: String?,
     val text: String?,
-    val postTime: Long
+    val postTime: Long,
+    val contentHidden: Boolean = false,
+    val appIconBase64: String? = null,
+    val deviceName: String? = null
 )

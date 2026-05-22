@@ -11,6 +11,13 @@
     <string name="qr_pairing_error_invalid_code">Invalid QR code</string>
     <string name="qr_pairing_error_read_failed">Could not read QR code</string>
     <string name="qr_pairing_scanner_prompt">Scan the NotifyBridge QR code</string>
+    <string name="qr_pairing_error_invalid_qr">Invalid QR code</string>
+    <string name="qr_pairing_error_missing_host">Missing host</string>
+    <string name="qr_pairing_error_missing_code">Missing code</string>
+    <string name="qr_pairing_error_invalid_response">Invalid pairing response</string>
+    <string name="qr_pairing_error_pairing_failed">Pairing failed</string>
+    <string name="notification_hidden_title">New notification</string>
+    <string name="notification_hidden_text">Notification content hidden</string>
 
     <string name="home_default_mac_name">Mac</string>
     <string name="home_header_description">Securely forwards Android notifications to your Mac.</string>
@@ -61,6 +68,13 @@
     <string name="home_exclude_button">Exclude</string>
     <string name="home_how_it_works_title">How does it work?</string>
     <string name="home_how_it_works_description">Notifications are securely transferred to your Mac over the local network.</string>
+    <string name="home_app_filters_title">Notification Filters</string>
+    <string name="home_app_filters_all_apps_description">Notifications from all apps will be forwarded.</string>
+    <string name="home_app_filters_selected_apps_description">Notifications from %1$d apps are being forwarded.</string>
+    <string name="home_manage_button">Manage</string>
+    <string name="home_notification_content_title">Notification Content</string>
+    <string name="home_notification_content_visible_description">Notification title and content will be shown on the Mac.</string>
+    <string name="home_notification_content_hidden_description">Notification content will be forwarded hidden.</string>
 
     <string name="settings_title">Settings</string>
     <string name="settings_subtitle">Manage your app preferences.</string>
@@ -107,4 +121,21 @@
     <string name="settings_developer_subtitle">AlpWare Studio</string>
     <string name="settings_alpware_description">Minimal, privacy-focused mobile tools</string>
     <string name="settings_google_play_description">View AlpWare Studio apps</string>
+
+    <string name="app_filter_title">Notification Filters</string>
+    <string name="app_filter_all_apps_subtitle">Notifications from all apps will be forwarded.</string>
+    <string name="app_filter_selected_apps_subtitle">%1$d apps selected.</string>
+    <string name="app_filter_apps_section_title">Applications</string>
+    <string name="app_filter_info_title">How does it work?</string>
+    <string name="app_filter_info_all_apps_description">If no apps are selected, NotifyBridge forwards notifications from all apps to the Mac device.</string>
+    <string name="app_filter_info_selected_apps_description">Only notifications from selected apps will be forwarded to the Mac device.</string>
+    <string name="app_filter_search_label">Search apps</string>
+    <string name="app_filter_show_selected_only_title">Show selected only</string>
+    <string name="app_filter_selected_count">%1$d apps selected</string>
+    <string name="app_filter_clear_all_button">Clear all filters</string>
+    <string name="app_filter_no_apps_subtitle">No apps selected.</string>
+    <string name="app_filter_info_no_apps_description">All apps are disabled. No app notifications will be forwarded to your Mac.</string>
+    <string name="app_filter_send_all_title">Forward all apps</string>
+    <string name="app_filter_send_all_enabled_description">Notifications from %1$d apps are being forwarded.</string>
+    <string name="app_filter_send_all_disabled_description">Only the apps selected below will be forwarded.</string>
 </resources>

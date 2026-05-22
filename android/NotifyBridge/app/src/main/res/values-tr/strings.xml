@@ -11,6 +11,13 @@
     <string name="qr_pairing_error_invalid_code">Geçersiz QR kod</string>
     <string name="qr_pairing_error_read_failed">QR okunamadı</string>
     <string name="qr_pairing_scanner_prompt">NotifyBridge QR kodunu okut</string>
+    <string name="qr_pairing_error_invalid_qr">Geçersiz QR kod</string>
+    <string name="qr_pairing_error_missing_host">Host eksik</string>
+    <string name="qr_pairing_error_missing_code">Kod eksik</string>
+    <string name="qr_pairing_error_invalid_response">Geçersiz eşleştirme yanıtı</string>
+    <string name="qr_pairing_error_pairing_failed">Eşleştirme başarısız</string>
+    <string name="notification_hidden_title">Yeni bildirim</string>
+    <string name="notification_hidden_text">Bildirim içeriği gizlendi</string>
 
     <string name="home_default_mac_name">Mac</string>
     <string name="home_header_description">Android bildirimlerini Mac cihazına güvenli şekilde aktarır.</string>
@@ -61,6 +68,13 @@
     <string name="home_exclude_button">Hariç Tut</string>
     <string name="home_how_it_works_title">Nasıl çalışır?</string>
     <string name="home_how_it_works_description">Bildirimler yerel ağ üzerinde şifreli şekilde Mac cihazına aktarılır.</string>
+    <string name="home_app_filters_title">Bildirim Filtreleri</string>
+    <string name="home_app_filters_all_apps_description">Tüm uygulamaların bildirimleri gönderilir.</string>
+    <string name="home_app_filters_selected_apps_description">%1$d uygulamanın bildirimi gönderiliyor.</string>
+    <string name="home_manage_button">Yönet</string>
+    <string name="home_notification_content_title">Bildirim İçeriği</string>
+    <string name="home_notification_content_visible_description">Bildirim başlığı ve içeriği Mac üzerinde gösterilir.</string>
+    <string name="home_notification_content_hidden_description">Bildirim içeriği gizlenerek gönderilir.</string>
 
     <string name="settings_title">Ayarlar</string>
     <string name="settings_subtitle">Uygulama tercihlerinizi yönetin.</string>
@@ -107,4 +121,21 @@
     <string name="settings_developer_subtitle">AlpWare Studio</string>
     <string name="settings_alpware_description">Minimal, gizlilik odaklı mobil araçlar</string>
     <string name="settings_google_play_description">AlpWare Studio uygulamalarını görüntüle</string>
+
+    <string name="app_filter_title">Bildirim Filtreleri</string>
+    <string name="app_filter_all_apps_subtitle">Tüm uygulama bildirimleri gönderilir.</string>
+    <string name="app_filter_selected_apps_subtitle">%1$d uygulama seçili.</string>
+    <string name="app_filter_apps_section_title">Uygulamalar</string>
+    <string name="app_filter_info_title">Nasıl çalışır?</string>
+    <string name="app_filter_info_all_apps_description">Hiç uygulama seçilmezse NotifyBridge tüm uygulama bildirimlerini Mac cihazına gönderir.</string>
+    <string name="app_filter_info_selected_apps_description">Sadece seçili uygulamaların bildirimleri Mac cihazına gönderilir.</string>
+    <string name="app_filter_search_label">Uygulama ara</string>
+    <string name="app_filter_show_selected_only_title">Sadece seçilenleri göster</string>
+    <string name="app_filter_selected_count">%1$d uygulama seçili</string>
+    <string name="app_filter_clear_all_button">Tüm filtreleri temizle</string>
+    <string name="app_filter_no_apps_subtitle">Hiçbir uygulama seçili değil.</string>
+    <string name="app_filter_info_no_apps_description">Tüm uygulamalar kapalı. Bu durumda hiçbir uygulama bildirimi Mac cihazına gönderilmez.</string>
+    <string name="app_filter_send_all_title">Tüm uygulamaları gönder</string>
+    <string name="app_filter_send_all_enabled_description">%1$d uygulamanın bildirimi gönderiliyor.</string>
+    <string name="app_filter_send_all_disabled_description">Sadece aşağıda seçtiğin uygulamaların bildirimleri gönderilir.</string>
 </resources>
