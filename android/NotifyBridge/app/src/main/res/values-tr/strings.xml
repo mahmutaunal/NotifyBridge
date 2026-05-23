@@ -16,6 +16,7 @@
     <string name="qr_pairing_error_missing_code">Kod eksik</string>
     <string name="qr_pairing_error_invalid_response">Geçersiz eşleştirme yanıtı</string>
     <string name="qr_pairing_error_pairing_failed">Eşleştirme başarısız</string>
+    <string name="qr_pairing_scanner_title">QR kodu tara</string>
     <string name="notification_hidden_title">Yeni bildirim</string>
     <string name="notification_hidden_text">Bildirim içeriği gizlendi</string>
 
@@ -75,6 +76,12 @@
     <string name="home_notification_content_title">Bildirim İçeriği</string>
     <string name="home_notification_content_visible_description">Bildirim başlığı ve içeriği Mac üzerinde gösterilir.</string>
     <string name="home_notification_content_hidden_description">Bildirim içeriği gizlenerek gönderilir.</string>
+    <string name="home_status_offline">Ulaşılamıyor</string>
+    <string name="home_transfer_status_offline">Mac cihazına ulaşılamıyor</string>
+    <string name="home_transfer_status_offline_description">Eşleşmiş Mac şu anda çevrimdışı veya aynı ağda değil.</string>
+    <string name="home_transfer_description_pairing_required">Aktarımı açmak için önce bir Mac ile eşleştir.</string>
+    <string name="home_transfer_description_mac_offline">Eşleşmiş Mac çevrimdışı olduğu için aktarım geçici olarak pasif.</string>
+    <string name="home_mac_offline_warning">Eşleşmiş Mac’e ulaşılamıyor. Mac uygulamasının açık ve aynı Wi-Fi ağında olduğundan emin ol.</string>
 
     <string name="settings_title">Ayarlar</string>
     <string name="settings_subtitle">Uygulama tercihlerinizi yönetin.</string>

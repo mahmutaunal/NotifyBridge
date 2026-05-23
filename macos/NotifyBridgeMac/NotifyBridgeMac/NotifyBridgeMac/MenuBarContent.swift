@@ -14,30 +14,42 @@ struct MenuBarContent: View {
     @StateObject private var launchAtLoginManager = LaunchAtLoginManager()
 
     var body: some View {
-        ScrollView(showsIndicators: false) {
-            VStack(spacing: 0) {
-                if server.pairingCompleted {
+        Group {
+            if server.pairingCompleted {
+                VStack(spacing: 0) {
                     ConnectedHeader(server: server)
-                } else {
-                    PairingHeader()
-                    PairingQRCodeSection(server: server)
-                }
 
-                // Shows local notification and startup controls.
-                ControlSection(
-                    server: server,
-                    launchAtLoginManager: launchAtLoginManager
-                )
+                    // Shows local notification and startup controls.
+                    ControlSection(
+                        server: server,
+                        launchAtLoginManager: launchAtLoginManager
+                    )
 
-                if server.pairingCompleted {
                     PairedDeviceSection(server: server)
+                    FooterSection(server: server)
                 }
+                .padding(16)
+                .fixedSize(horizontal: false, vertical: true)
+            } else {
+                ScrollView(showsIndicators: false) {
+                    VStack(spacing: 0) {
+                        PairingHeader()
+                        PairingQRCodeSection(server: server)
 
-                FooterSection(server: server)
+                        // Shows local notification and startup controls.
+                        ControlSection(
+                            server: server,
+                            launchAtLoginManager: launchAtLoginManager
+                        )
+
+                        FooterSection(server: server)
+                    }
+                    .padding(16)
+                }
+                .frame(height: 690)
             }
-            .padding(16)
         }
-        .frame(width: 430, height: server.pairingCompleted ? 520 : 690)
+        .frame(width: 430)
         .background(Color(nsColor: .windowBackgroundColor))
     }
 }
@@ -154,6 +166,9 @@ private struct PairingQRCodeSection: View {
                     .foregroundStyle(.secondary)
             }
             .frame(maxWidth: .infinity)
+            .onAppear {
+                server.refreshPairingCodeIfNeeded(force: true)
+            }
         }
     }
 }

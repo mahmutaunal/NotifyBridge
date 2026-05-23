@@ -3,7 +3,6 @@ package com.alpware.notifybridge.notification
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.drawable.Drawable
-import android.os.Build
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
 import android.util.Base64
@@ -15,6 +14,7 @@ import com.alpware.notifybridge.network.NotificationSender
 import java.io.ByteArrayOutputStream
 import androidx.core.graphics.createBitmap
 import com.alpware.notifybridge.R
+import com.alpware.notifybridge.core.DeviceNameResolver
 
 /**
  * Listens for Android notifications and forwards eligible ones to the paired Mac device.
@@ -78,7 +78,7 @@ class NotifyBridgeNotificationListener : NotificationListenerService() {
             postTime = sbn.postTime,
             contentHidden = !showContent,
             appIconBase64 = appIconBase64,
-            deviceName = "${Build.MANUFACTURER} ${Build.MODEL}".trim()
+            deviceName = DeviceNameResolver.get(this)
         )
 
         Log.d(TAG, "Bridge enabled. Notification received: $payload")

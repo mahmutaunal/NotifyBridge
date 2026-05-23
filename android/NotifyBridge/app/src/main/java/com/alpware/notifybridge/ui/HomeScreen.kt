@@ -18,6 +18,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.DesktopMac
+import androidx.compose.material.icons.outlined.FilterList
+import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -60,6 +62,7 @@ import com.alpware.notifybridge.network.SendResult
 fun HomeScreen(
     hasNotificationAccess: Boolean,
     bridgeEnabled: Boolean,
+    isMacOnline: Boolean,
     macIp: String,
     macPort: String,
     macName: String,
@@ -87,6 +90,7 @@ fun HomeScreen(
 
     // A valid pairing requires both a Mac address and a shared pairing token.
     val isPaired = macIp.isNotBlank() && pairingToken.isNotBlank()
+    val isConnected = isPaired && isMacOnline
     val fallbackMacName = stringResource(R.string.home_default_mac_name)
     val pairedMacName = macName.ifBlank { macIp.ifBlank { fallbackMacName } }
 
@@ -129,6 +133,7 @@ fun HomeScreen(
 
                 ConnectionHeroCard(
                     isPaired = isPaired,
+                    isConnected = isConnected,
                     bridgeEnabled = bridgeEnabled,
                     macIp = macIp,
                     macPort = macPort,
@@ -138,6 +143,8 @@ fun HomeScreen(
                 TransferCard(
                     bridgeEnabled = bridgeEnabled,
                     hasNotificationAccess = hasNotificationAccess,
+                    isPaired = isPaired,
+                    isMacOnline = isMacOnline,
                     onBridgeEnabledChanged = onBridgeEnabledChanged
                 )
 
@@ -151,6 +158,7 @@ fun HomeScreen(
                 ConnectionCard(
                     hasNotificationAccess = hasNotificationAccess,
                     isPaired = isPaired,
+                    isMacOnline = isMacOnline,
                     macIp = macIp,
                     macPort = macPort,
                     macName = pairedMacName,
@@ -206,7 +214,7 @@ private fun HeaderSection(
         modifier = Modifier
             .fillMaxWidth()
             .padding(top = 8.dp, bottom = 4.dp),
-        verticalAlignment = Alignment.Top
+        verticalAlignment = Alignment.CenterVertically
     ) {
         Column(
             modifier = Modifier
@@ -252,6 +260,7 @@ private fun HeaderSection(
 @Composable
 private fun ConnectionHeroCard(
     isPaired: Boolean,
+    isConnected: Boolean,
     bridgeEnabled: Boolean,
     macIp: String,
     macPort: String,
@@ -259,13 +268,14 @@ private fun ConnectionHeroCard(
 ) {
     val connectedBadgeText = stringResource(R.string.home_status_connected)
     val disconnectedBadgeText = stringResource(R.string.home_status_disconnected)
+    val offlineBadgeText = stringResource(R.string.home_status_offline)
     val disconnectedMacText = stringResource(R.string.home_mac_not_connected)
     val pairingHintText = stringResource(R.string.home_pairing_hint)
     val portLabel = stringResource(R.string.home_port_label)
-    val containerColor = if (isPaired) {
-        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.34f)
-    } else {
-        MaterialTheme.colorScheme.surfaceContainer
+    val containerColor = when {
+        isConnected -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.34f)
+        isPaired -> MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.20f)
+        else -> MaterialTheme.colorScheme.surfaceContainer
     }
 
     Card(
@@ -304,8 +314,12 @@ private fun ConnectionHeroCard(
                     verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     StatusBadge(
-                        text = if (isPaired) connectedBadgeText else disconnectedBadgeText,
-                        positive = isPaired
+                        text = when {
+                            isConnected -> connectedBadgeText
+                            isPaired -> offlineBadgeText
+                            else -> disconnectedBadgeText
+                        },
+                        positive = isConnected
                     )
 
                     Text(
@@ -342,7 +356,7 @@ private fun ConnectionHeroCard(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = if (bridgeEnabled && isPaired) "✓" else "•",
+                        text = if (bridgeEnabled && isConnected) "✓" else "•",
                         style = MaterialTheme.typography.titleLarge,
                         color = MaterialTheme.colorScheme.primary,
                         fontWeight = FontWeight.Bold
@@ -355,24 +369,22 @@ private fun ConnectionHeroCard(
                         .padding(start = 14.dp)
                 ) {
                     Text(
-                        text = if (bridgeEnabled && isPaired) {
-                            stringResource(R.string.home_transfer_status_forwarding)
-                        } else if (isPaired) {
-                            stringResource(R.string.home_transfer_status_off)
-                        } else {
-                            stringResource(R.string.home_transfer_status_setup_pending)
+                        text = when {
+                            bridgeEnabled && isConnected -> stringResource(R.string.home_transfer_status_forwarding)
+                            isPaired && !isConnected -> stringResource(R.string.home_transfer_status_offline)
+                            isPaired -> stringResource(R.string.home_transfer_status_off)
+                            else -> stringResource(R.string.home_transfer_status_setup_pending)
                         },
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold
                     )
 
                     Text(
-                        text = if (bridgeEnabled && isPaired) {
-                            stringResource(R.string.home_transfer_status_forwarding_description)
-                        } else if (isPaired) {
-                            stringResource(R.string.home_transfer_status_off_description)
-                        } else {
-                            stringResource(R.string.home_transfer_status_setup_pending_description)
+                        text = when {
+                            bridgeEnabled && isConnected -> stringResource(R.string.home_transfer_status_forwarding_description)
+                            isPaired && !isConnected -> stringResource(R.string.home_transfer_status_offline_description)
+                            isPaired -> stringResource(R.string.home_transfer_status_off_description)
+                            else -> stringResource(R.string.home_transfer_status_setup_pending_description)
                         },
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -390,6 +402,8 @@ private fun ConnectionHeroCard(
 private fun TransferCard(
     bridgeEnabled: Boolean,
     hasNotificationAccess: Boolean,
+    isPaired: Boolean,
+    isMacOnline: Boolean,
     onBridgeEnabledChanged: (Boolean) -> Unit
 ) {
     Card(
@@ -431,10 +445,11 @@ private fun TransferCard(
                 )
 
                 Text(
-                    text = if (hasNotificationAccess) {
-                        stringResource(R.string.home_transfer_description_enabled)
-                    } else {
-                        stringResource(R.string.home_transfer_description_permission_required)
+                    text = when {
+                        !hasNotificationAccess -> stringResource(R.string.home_transfer_description_permission_required)
+                        !isPaired -> stringResource(R.string.home_transfer_description_pairing_required)
+                        !isMacOnline -> stringResource(R.string.home_transfer_description_mac_offline)
+                        else -> stringResource(R.string.home_transfer_description_enabled)
                     },
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -442,8 +457,8 @@ private fun TransferCard(
             }
 
             Switch(
-                checked = bridgeEnabled,
-                enabled = hasNotificationAccess,
+                checked = bridgeEnabled && isPaired,
+                enabled = hasNotificationAccess && isPaired && isMacOnline,
                 onCheckedChange = onBridgeEnabledChanged
             )
         }
@@ -474,7 +489,16 @@ private fun NotificationPreferencesCard(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column(modifier = Modifier.weight(1f)) {
+                PreferenceIcon(
+                    icon = Icons.Outlined.FilterList,
+                    contentDescription = null
+                )
+
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(start = 16.dp)
+                ) {
                     Text(
                         text = stringResource(R.string.home_app_filters_title),
                         style = MaterialTheme.typography.titleMedium,
@@ -506,7 +530,16 @@ private fun NotificationPreferencesCard(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column(modifier = Modifier.weight(1f)) {
+                PreferenceIcon(
+                    icon = Icons.Outlined.Visibility,
+                    contentDescription = null
+                )
+
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(start = 16.dp)
+                ) {
                     Text(
                         text = stringResource(R.string.home_notification_content_title),
                         style = MaterialTheme.typography.titleMedium,
@@ -533,6 +566,28 @@ private fun NotificationPreferencesCard(
     }
 }
 
+/**
+ * Displays a circular icon used by notification preference rows.
+ */
+@Composable
+private fun PreferenceIcon(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    contentDescription: String?
+) {
+    Box(
+        modifier = Modifier
+            .size(52.dp)
+            .clip(CircleShape)
+            .background(MaterialTheme.colorScheme.secondaryContainer),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = contentDescription,
+            tint = MaterialTheme.colorScheme.onSecondaryContainer
+        )
+    }
+}
 
 /**
  * Displays a compact visual indicator for connection state.
@@ -580,6 +635,7 @@ private fun StatusBadge(
 private fun ConnectionCard(
     hasNotificationAccess: Boolean,
     isPaired: Boolean,
+    isMacOnline: Boolean,
     macIp: String,
     macPort: String,
     macName: String,
@@ -689,11 +745,19 @@ private fun ConnectionCard(
                     }
 
                     OutlinedButton(
-                        enabled = hasNotificationAccess,
+                        enabled = hasNotificationAccess && isPaired,
                         onClick = onSendTestNotification
                     ) {
                         Text(stringResource(R.string.home_test_button))
                     }
+                }
+
+                if (!isMacOnline) {
+                    Text(
+                        text = stringResource(R.string.home_mac_offline_warning),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error
+                    )
                 }
 
                 Button(

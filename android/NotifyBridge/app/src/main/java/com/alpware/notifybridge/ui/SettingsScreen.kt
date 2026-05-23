@@ -42,6 +42,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -52,6 +53,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.alpware.notifybridge.R
+import com.alpware.notifybridge.BuildConfig
 
 private const val GITHUB_URL = "https://github.com/mahmutaunal"
 private const val ALPWARE_URL = "https://www.alpwarestudio.com/"
@@ -102,7 +104,11 @@ fun SettingsScreen(
                             contentDescription = stringResource(R.string.common_back)
                         )
                     }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background,
+                    scrolledContainerColor = MaterialTheme.colorScheme.background
+                )
             )
         }
     ) { paddingValues ->
@@ -316,7 +322,7 @@ private fun ApplicationCard(
             icon = Icons.Outlined.Info,
             title = stringResource(R.string.settings_version_title),
             description = stringResource(R.string.settings_version_description),
-            trailingText = "0.1.0"
+            trailingText = BuildConfig.VERSION_NAME
         )
 
         SettingsDivider()

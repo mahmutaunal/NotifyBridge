@@ -15,6 +15,7 @@ import android.text.TextUtils
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
+import androidx.activity.compose.BackHandler
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.mutableStateOf
@@ -28,16 +29,16 @@ import com.alpware.notifybridge.network.SendResult
 import com.alpware.notifybridge.notification.NotifyBridgeNotificationListener
 import com.alpware.notifybridge.pairing.PairingPayload
 import com.alpware.notifybridge.service.BridgeServiceController
-import com.journeyapps.barcodescanner.ScanContract
-import com.journeyapps.barcodescanner.ScanOptions
 import androidx.core.net.toUri
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import com.alpware.notifybridge.core.AppFilterStore
 import com.alpware.notifybridge.core.PrivacyStore
 import com.alpware.notifybridge.model.InstalledAppItem
+import com.alpware.notifybridge.network.ConnectionHealthClient
 import com.alpware.notifybridge.network.PairingClient
 import com.alpware.notifybridge.ui.AppFilterScreen
 import com.alpware.notifybridge.ui.HomeScreen
+import com.alpware.notifybridge.ui.QrScannerScreen
 import com.alpware.notifybridge.ui.SettingsScreen
 import com.alpware.notifybridge.ui.theme.NotifyBridgeTheme
 
@@ -54,58 +55,13 @@ class MainActivity : ComponentActivity() {
     private val batteryOptimizationIgnoredState = mutableStateOf(false)
     private val postNotificationPermissionGrantedState = mutableStateOf(false)
     private val cameraPermissionGrantedState = mutableStateOf(false)
+    private var shouldStartQrPairingAfterCameraPermission = false
     private var macDiscoveryManager: MacDiscoveryManager? = null
     private val currentScreenState = mutableStateOf(AppScreen.Home)
     private val installedAppsState = mutableStateOf<List<InstalledAppItem>>(emptyList())
     private val showNotificationContentState = mutableStateOf(true)
     private val sendAllAppsState = mutableStateOf(true)
-
-    // Handles QR pairing results produced by the camera scanner.
-    private val qrScannerLauncher = registerForActivityResult(ScanContract()) { result ->
-        val contents = result.contents ?: return@registerForActivityResult
-
-        runCatching {
-            parsePairingQr(contents)
-        }.onSuccess { payload ->
-            sendResultState.value = SendResult.Loading
-
-            PairingClient.pair(
-                host = payload.host,
-                port = payload.port,
-                code = payload.code
-            ) { result ->
-                runOnUiThread {
-                    result.onSuccess { response ->
-                        if (response.type == "notifybridge_pairing_response") {
-                            MacConnectionStore.setMacIp(this, response.host)
-                            MacConnectionStore.setMacPort(this, response.port.toString())
-                            MacConnectionStore.setPairingToken(this, response.secret)
-                            MacConnectionStore.setMacName(
-                                this,
-                                response.name.ifBlank { payload.name ?: response.host }
-                            )
-
-                            NotificationSender.sendTest(this) { sendResult ->
-                                runOnUiThread {
-                                    sendResultState.value = sendResult
-                                }
-                            }
-                        } else {
-                            sendResultState.value = SendResult.Error(
-                                getString(R.string.qr_pairing_error_invalid_response)
-                            )
-                        }
-                    }.onFailure {
-                        sendResultState.value = SendResult.Error(
-                            it.message ?: getString(R.string.qr_pairing_error_pairing_failed)
-                        )
-                    }
-                }
-            }
-        }.onFailure {
-            sendResultState.value = SendResult.Error(getString(R.string.qr_pairing_error_read_failed))
-        }
-    }
+    private val macOnlineState = mutableStateOf(false)
 
     // Refreshes permission-dependent state after the notification permission dialog closes.
     private val notificationPermissionLauncher =
@@ -115,8 +71,15 @@ class MainActivity : ComponentActivity() {
 
     // Refreshes camera permission state after the runtime permission dialog closes.
     private val cameraPermissionLauncher =
-        registerForActivityResult(ActivityResultContracts.RequestPermission()) {
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
             refreshStates()
+
+            if (granted && shouldStartQrPairingAfterCameraPermission) {
+                shouldStartQrPairingAfterCameraPermission = false
+                currentScreenState.value = AppScreen.Scanner
+            } else if (!granted) {
+                shouldStartQrPairingAfterCameraPermission = false
+            }
         }
 
     /**
@@ -151,12 +114,17 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             NotifyBridgeTheme {
+                BackHandler(enabled = currentScreenState.value != AppScreen.Home) {
+                    currentScreenState.value = AppScreen.Home
+                }
+
                 // Switch between top-level Compose screens without a navigation framework.
                 when (currentScreenState.value) {
                     AppScreen.Home -> {
                         HomeScreen(
                             hasNotificationAccess = hasNotificationAccessState.value,
                             bridgeEnabled = bridgeEnabledState.value,
+                            isMacOnline = macOnlineState.value,
                             macIp = MacConnectionStore.getMacIp(this),
                             macPort = MacConnectionStore.getMacPort(this),
                             macName = MacConnectionStore.getMacName(this),
@@ -212,6 +180,11 @@ class MainActivity : ComponentActivity() {
                                 MacConnectionStore.setMacPort(this, "8787")
                                 MacConnectionStore.setPairingToken(this, "")
                                 MacConnectionStore.setMacName(this, "")
+
+                                BridgeStateStore.setBridgeEnabled(this, false)
+                                bridgeEnabledState.value = false
+                                BridgeServiceController.stop(this)
+
                                 sendResultState.value = null
                                 discoveryResultState.value = null
                             },
@@ -268,6 +241,18 @@ class MainActivity : ComponentActivity() {
                             }
                         )
                     }
+
+                    AppScreen.Scanner -> {
+                        QrScannerScreen(
+                            onBack = {
+                                currentScreenState.value = AppScreen.Home
+                            },
+                            onQrScanned = { contents ->
+                                currentScreenState.value = AppScreen.Home
+                                handlePairingQr(contents)
+                            }
+                        )
+                    }
                 }
             }
         }
@@ -279,6 +264,7 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         refreshStates()
+        checkMacHealth()
     }
 
     /**
@@ -349,17 +335,65 @@ class MainActivity : ComponentActivity() {
      */
     private fun startQrPairing() {
         if (!isCameraPermissionGranted()) {
+            shouldStartQrPairingAfterCameraPermission = true
             requestCameraPermissionIfNeeded()
             return
         }
 
-        val options = ScanOptions()
-            .setDesiredBarcodeFormats(ScanOptions.QR_CODE)
-            .setPrompt(getString(R.string.qr_pairing_scanner_prompt))
-            .setBeepEnabled(false)
-            .setOrientationLocked(true)
+        currentScreenState.value = AppScreen.Scanner
+    }
 
-        qrScannerLauncher.launch(options)
+    /**
+     * Handles QR pairing results produced by the camera scanner.
+     */
+    private fun handlePairingQr(contents: String) {
+        runCatching {
+            parsePairingQr(contents)
+        }.onSuccess { payload ->
+            sendResultState.value = SendResult.Loading
+
+            PairingClient.pair(
+                context = this,
+                host = payload.host,
+                port = payload.port,
+                code = payload.code
+            ) { result ->
+                runOnUiThread {
+                    result.onSuccess { response ->
+                        if (response.type == "notifybridge_pairing_response") {
+                            MacConnectionStore.setMacIp(this, response.host)
+                            MacConnectionStore.setMacPort(this, response.port.toString())
+                            MacConnectionStore.setPairingToken(this, response.secret)
+                            MacConnectionStore.setMacName(
+                                this,
+                                response.name.ifBlank { payload.name ?: response.host }
+                            )
+
+                            BridgeStateStore.setBridgeEnabled(this, true)
+                            bridgeEnabledState.value = true
+                            requestPostNotificationPermissionIfNeeded()
+                            BridgeServiceController.start(this)
+
+                            NotificationSender.sendTest(this) { sendResult ->
+                                runOnUiThread {
+                                    sendResultState.value = sendResult
+                                }
+                            }
+                        } else {
+                            sendResultState.value = SendResult.Error(
+                                getString(R.string.qr_pairing_error_invalid_response)
+                            )
+                        }
+                    }.onFailure {
+                        sendResultState.value = SendResult.Error(
+                            it.message ?: getString(R.string.qr_pairing_error_pairing_failed)
+                        )
+                    }
+                }
+            }
+        }.onFailure {
+            sendResultState.value = SendResult.Error(getString(R.string.qr_pairing_error_read_failed))
+        }
     }
 
     /**
@@ -475,12 +509,21 @@ class MainActivity : ComponentActivity() {
             .sortedBy { it.appName.lowercase() }
     }
 
+    private fun checkMacHealth() {
+        ConnectionHealthClient.check(this) { isOnline ->
+            runOnUiThread {
+                macOnlineState.value = isOnline
+            }
+        }
+    }
+
     /**
      * Represents the currently visible top-level screen.
      */
     private enum class AppScreen {
         Home,
         Settings,
-        AppFilters
+        AppFilters,
+        Scanner
     }
 }

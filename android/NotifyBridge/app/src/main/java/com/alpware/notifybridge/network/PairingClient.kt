@@ -1,13 +1,12 @@
 package com.alpware.notifybridge.network
 
-import android.os.Build
+import android.content.Context
+import com.alpware.notifybridge.core.DeviceNameResolver
 import com.alpware.notifybridge.pairing.PairingRequest
 import com.alpware.notifybridge.pairing.PairingResponse
 import com.google.gson.Gson
-import java.io.OutputStreamWriter
 import java.net.HttpURLConnection
 import java.net.URL
-
 
 /**
  * Handles the initial pairing handshake between the Android device and the Mac app.
@@ -18,6 +17,7 @@ object PairingClient {
      * Sends the pairing code and device information to the Mac pairing endpoint.
      */
     fun pair(
+        context: Context,
         host: String,
         port: Int,
         code: String,
@@ -29,7 +29,7 @@ object PairingClient {
                 // Include a readable Android device name for the Mac pairing UI.
                 val request = PairingRequest(
                     code = code,
-                    deviceName = "${Build.MANUFACTURER} ${Build.MODEL}".trim()
+                    deviceName = DeviceNameResolver.get(context)
                 )
 
                 // Serialize the pairing request into JSON before transmission.
@@ -42,10 +42,17 @@ object PairingClient {
                 connection.readTimeout = 3000
                 connection.doOutput = true
                 connection.setRequestProperty("Content-Type", "application/json")
+
                 // Send the pairing payload to the Mac application.
-                OutputStreamWriter(connection.outputStream).use { writer ->
-                    writer.write(json)
-                    writer.flush()
+                val bodyBytes = json.toByteArray(Charsets.UTF_8)
+
+                connection.setRequestProperty("Content-Type", "application/json; charset=utf-8")
+                connection.setRequestProperty("Content-Length", bodyBytes.size.toString())
+                connection.setFixedLengthStreamingMode(bodyBytes.size)
+
+                connection.outputStream.use { output ->
+                    output.write(bodyBytes)
+                    output.flush()
                 }
 
                 val responseCode = connection.responseCode

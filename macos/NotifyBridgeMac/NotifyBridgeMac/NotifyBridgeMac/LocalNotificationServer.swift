@@ -29,6 +29,7 @@ final class LocalNotificationServer: ObservableObject {
     @Published var lastClientAddress: String = UserDefaults.standard.string(forKey: "lastClientAddress") ?? ""
     @Published var lastConnectionDate: Date? = UserDefaults.standard.object(forKey: "lastConnectionDate") as? Date
     @Published var lastClientName: String = UserDefaults.standard.string(forKey: "lastClientName") ?? ""
+    @Published var lastClientHeartbeatDate: Date? = UserDefaults.standard.object(forKey: "lastClientHeartbeatDate") as? Date
     
     @Published var pairingCode: String = UUID().uuidString
     private var pairingCodeCreatedAt = Date()
@@ -61,6 +62,11 @@ final class LocalNotificationServer: ObservableObject {
         ]
 
         return components?.url?.absoluteString ?? ""
+    }
+    
+    var isClientOnline: Bool {
+        guard let lastClientHeartbeatDate else { return false }
+        return Date().timeIntervalSince(lastClientHeartbeatDate) < 45
     }
 
     private let port: NWEndpoint.Port = 8787
@@ -136,23 +142,73 @@ final class LocalNotificationServer: ObservableObject {
     /// Reads the raw HTTP-like request from a newly accepted client connection.
     private func handle(_ connection: NWConnection) {
         connection.start(queue: .global(qos: .userInitiated))
+        receiveRequestData(connection, accumulated: Data())
+    }
+    
+    private func receiveRequestData(
+        _ connection: NWConnection,
+        accumulated: Data
+    ) {
+        connection.receive(minimumIncompleteLength: 1, maximumLength: 64 * 1024) { [weak self] data, _, isComplete, error in
+            guard let self else { return }
 
-        connection.receive(minimumIncompleteLength: 1, maximumLength: 64 * 1024) { [weak self] data, _, _, error in
             if let error {
                 print("Receive error:", error.localizedDescription)
                 connection.cancel()
                 return
             }
 
-            guard let data, !data.isEmpty else {
+            var buffer = accumulated
+
+            if let data, !data.isEmpty {
+                buffer.append(data)
+            }
+
+            if buffer.isEmpty {
                 connection.cancel()
                 return
             }
 
-            self?.handleRequestData(data, connection: connection)
+            if isComplete || self.isCompleteHttpRequest(buffer) {
+                self.handleRequestData(buffer, connection: connection)
+            } else {
+                self.receiveRequestData(connection, accumulated: buffer)
+            }
         }
     }
 
+    private func isCompleteHttpRequest(_ data: Data) -> Bool {
+        guard let requestText = String(data: data, encoding: .utf8) else {
+            return false
+        }
+
+        guard let bodyRange = httpBodyRange(in: requestText) else {
+            return false
+        }
+
+        let headers = String(requestText[..<bodyRange.lowerBound])
+        let body = String(requestText[bodyRange.upperBound...])
+
+        guard let contentLength = headerValue("Content-Length", from: headers)
+            .flatMap({ Int($0) }) else {
+            return true
+        }
+
+        return body.utf8.count >= contentLength
+    }
+
+    private func httpBodyRange(in requestText: String) -> Range<String.Index>? {
+        requestText.range(of: "\r\n\r\n") ?? requestText.range(of: "\n\n")
+    }
+
+    private func httpBody(from requestText: String) -> String? {
+        guard let bodyRange = httpBodyRange(in: requestText) else {
+            return nil
+        }
+
+        return String(requestText[bodyRange.upperBound...])
+    }
+    
     /// Validates, decrypts, and presents a notification request from the Android app.
     private func handleRequestData(_ data: Data, connection: NWConnection) {
         guard let requestText = String(data: data, encoding: .utf8) else {
@@ -164,18 +220,23 @@ final class LocalNotificationServer: ObservableObject {
             handlePairRequest(requestText: requestText, connection: connection)
             return
         }
+        
+        if requestText.hasPrefix("GET /health") {
+            markClientHeartbeat(connection: connection)
+            sendOk(connection)
+            return
+        }
 
         guard requestText.hasPrefix("POST /notify") else {
+            sendNotFound(connection)
             sendNotFound(connection)
             return
         }
 
-        guard let bodyRange = requestText.range(of: "\r\n\r\n") else {
+        guard let body = httpBody(from: requestText) else {
             sendBadRequest(connection)
             return
         }
-
-        let body = String(requestText[bodyRange.upperBound...])
         
         guard validateSignature(requestText: requestText, body: body) else {
             sendUnauthorized(connection)
@@ -387,12 +448,10 @@ final class LocalNotificationServer: ObservableObject {
     }
     
     private func handlePairRequest(requestText: String, connection: NWConnection) {
-        guard let bodyRange = requestText.range(of: "\r\n\r\n") else {
+        guard let body = httpBody(from: requestText) else {
             sendBadRequest(connection)
             return
         }
-
-        let body = String(requestText[bodyRange.upperBound...])
 
         guard let bodyData = body.data(using: .utf8),
               let request = try? JSONDecoder().decode(PairingRequest.self, from: bodyData) else {
@@ -427,12 +486,50 @@ final class LocalNotificationServer: ObservableObject {
         }
 
         rotatePairingCode()
+        
+        DispatchQueue.main.async {
+            self.pairingCompleted = true
+            self.lastClientName = request.deviceName ?? String(localized: "unknown_client_device")
+            self.lastConnectionDate = Date()
+
+            UserDefaults.standard.set(true, forKey: "pairingCompleted")
+            UserDefaults.standard.set(self.lastClientName, forKey: "lastClientName")
+            UserDefaults.standard.set(Date(), forKey: "lastConnectionDate")
+        }
+        
         sendJson(responseJson, connection: connection)
     }
 
     private func rotatePairingCode() {
         pairingCode = UUID().uuidString
         pairingCodeCreatedAt = Date()
+    }
+    
+    func refreshPairingCodeIfNeeded(force: Bool = false) {
+        let age = Date().timeIntervalSince(pairingCodeCreatedAt)
+
+        if force || age > 90 {
+            rotatePairingCode()
+        }
+    }
+    
+    private func markClientHeartbeat(connection: NWConnection) {
+        let address: String
+
+        switch connection.endpoint {
+        case .hostPort(let host, _):
+            address = "\(host)"
+        default:
+            address = String(localized: "unknown_client_device")
+        }
+
+        DispatchQueue.main.async {
+            self.lastClientAddress = address
+            self.lastClientHeartbeatDate = Date()
+
+            UserDefaults.standard.set(address, forKey: "lastClientAddress")
+            UserDefaults.standard.set(Date(), forKey: "lastClientHeartbeatDate")
+        }
     }
 
     /// Clears the paired device state and rotates the pairing token.

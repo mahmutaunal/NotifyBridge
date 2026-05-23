@@ -16,6 +16,7 @@
     <string name="qr_pairing_error_missing_code">Missing code</string>
     <string name="qr_pairing_error_invalid_response">Invalid pairing response</string>
     <string name="qr_pairing_error_pairing_failed">Pairing failed</string>
+    <string name="qr_pairing_scanner_title">Scan QR code</string>
     <string name="notification_hidden_title">New notification</string>
     <string name="notification_hidden_text">Notification content hidden</string>
 
@@ -75,6 +76,12 @@
     <string name="home_notification_content_title">Notification Content</string>
     <string name="home_notification_content_visible_description">Notification title and content will be shown on the Mac.</string>
     <string name="home_notification_content_hidden_description">Notification content will be forwarded hidden.</string>
+    <string name="home_status_offline">Unreachable</string>
+    <string name="home_transfer_status_offline">Mac is unreachable</string>
+    <string name="home_transfer_status_offline_description">The paired Mac is currently offline or not connected to the same network.</string>
+    <string name="home_transfer_description_pairing_required">Pair with a Mac before enabling forwarding.</string>
+    <string name="home_transfer_description_mac_offline">Forwarding is temporarily disabled because the paired Mac is offline.</string>
+    <string name="home_mac_offline_warning">The paired Mac cannot be reached. Make sure the Mac app is open and connected to the same Wi-Fi network.</string>
 
     <string name="settings_title">Settings</string>
     <string name="settings_subtitle">Manage your app preferences.</string>
