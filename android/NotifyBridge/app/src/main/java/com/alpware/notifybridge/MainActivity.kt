@@ -35,7 +35,9 @@ import com.alpware.notifybridge.core.AppFilterStore
 import com.alpware.notifybridge.core.PrivacyStore
 import com.alpware.notifybridge.model.InstalledAppItem
 import com.alpware.notifybridge.network.ConnectionHealthClient
+import com.alpware.notifybridge.network.ConnectionHealthResult
 import com.alpware.notifybridge.network.PairingClient
+import com.alpware.notifybridge.network.UnpairClient
 import com.alpware.notifybridge.ui.AppFilterScreen
 import com.alpware.notifybridge.ui.HomeScreen
 import com.alpware.notifybridge.ui.QrScannerScreen
@@ -62,6 +64,7 @@ class MainActivity : ComponentActivity() {
     private val showNotificationContentState = mutableStateOf(true)
     private val sendAllAppsState = mutableStateOf(true)
     private val macOnlineState = mutableStateOf(false)
+    private val isRefreshingConnectionState = mutableStateOf(false)
 
     // Refreshes permission-dependent state after the notification permission dialog closes.
     private val notificationPermissionLauncher =
@@ -125,6 +128,7 @@ class MainActivity : ComponentActivity() {
                             hasNotificationAccess = hasNotificationAccessState.value,
                             bridgeEnabled = bridgeEnabledState.value,
                             isMacOnline = macOnlineState.value,
+                            isRefreshingConnection = isRefreshingConnectionState.value,
                             macIp = MacConnectionStore.getMacIp(this),
                             macPort = MacConnectionStore.getMacPort(this),
                             macName = MacConnectionStore.getMacName(this),
@@ -133,6 +137,9 @@ class MainActivity : ComponentActivity() {
                             isIgnoringBatteryOptimizations = batteryOptimizationIgnoredState.value,
                             onRequestBatteryOptimizationIgnore = {
                                 requestIgnoreBatteryOptimizations()
+                            },
+                            onRefreshConnection = {
+                                checkMacHealth()
                             },
                             onScanPairingQr = {
                                 startQrPairing()
@@ -144,6 +151,7 @@ class MainActivity : ComponentActivity() {
                                 if (enabled) {
                                     requestPostNotificationPermissionIfNeeded()
                                     BridgeServiceController.start(this)
+                                    checkMacHealth()
                                 } else {
                                     BridgeServiceController.stop(this)
                                 }
@@ -176,18 +184,12 @@ class MainActivity : ComponentActivity() {
                             },
                             selectedAppFilterCount = AppFilterStore.getSelectedPackages(this).size,
                             onResetPairing = {
-                                MacConnectionStore.setMacIp(this, "")
-                                MacConnectionStore.setMacPort(this, "8787")
-                                MacConnectionStore.setPairingToken(this, "")
-                                MacConnectionStore.setMacName(this, "")
-
-                                BridgeStateStore.setBridgeEnabled(this, false)
-                                bridgeEnabledState.value = false
-                                BridgeServiceController.stop(this)
-
-                                sendResultState.value = null
-                                discoveryResultState.value = null
-                            },
+                                UnpairClient.unpair(this) {
+                                    runOnUiThread {
+                                        clearPairingLocally()
+                                    }
+                                }
+                            }
                         )
                     }
 
@@ -373,6 +375,7 @@ class MainActivity : ComponentActivity() {
                             bridgeEnabledState.value = true
                             requestPostNotificationPermissionIfNeeded()
                             BridgeServiceController.start(this)
+                            checkMacHealth()
 
                             NotificationSender.sendTest(this) { sendResult ->
                                 runOnUiThread {
@@ -510,11 +513,53 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun checkMacHealth() {
-        ConnectionHealthClient.check(this) { isOnline ->
+        val hasPairing = MacConnectionStore.getMacIp(this).isNotBlank() &&
+            MacConnectionStore.getPairingToken(this).isNotBlank()
+
+        if (!hasPairing) {
+            macOnlineState.value = false
+            isRefreshingConnectionState.value = false
+            return
+        }
+
+        isRefreshingConnectionState.value = true
+
+        ConnectionHealthClient.check(this) { result ->
             runOnUiThread {
-                macOnlineState.value = isOnline
+                isRefreshingConnectionState.value = false
+
+                when (result) {
+                    ConnectionHealthResult.Online -> {
+                        macOnlineState.value = true
+                    }
+
+                    ConnectionHealthResult.Offline -> {
+                        macOnlineState.value = false
+                    }
+
+                    ConnectionHealthResult.PairingInvalid -> {
+                        macOnlineState.value = false
+                        clearPairingLocally()
+                    }
+                }
             }
         }
+    }
+
+    private fun clearPairingLocally() {
+        MacConnectionStore.setMacIp(this, "")
+        MacConnectionStore.setMacPort(this, "8787")
+        MacConnectionStore.setPairingToken(this, "")
+        MacConnectionStore.setMacName(this, "")
+
+        BridgeStateStore.setBridgeEnabled(this, false)
+        bridgeEnabledState.value = false
+        BridgeServiceController.stop(this)
+
+        macOnlineState.value = false
+        isRefreshingConnectionState.value = false
+        sendResultState.value = null
+        discoveryResultState.value = null
     }
 
     /**

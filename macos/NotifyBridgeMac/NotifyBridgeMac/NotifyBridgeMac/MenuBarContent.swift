@@ -61,25 +61,32 @@ private struct ConnectedHeader: View {
     var body: some View {
         CardContainer {
             HStack(spacing: 18) {
-                DeviceIcon(isConnected: true)
+                DeviceIcon(isConnected: server.isClientOnline)
 
                 VStack(alignment: .leading, spacing: 8) {
                     StatusBadge(
-                        text: String(localized: "Bağlı"),
-                        color: .green
+                        text: server.isClientOnline
+                            ? String(localized: "connection_status_connected")
+                            : String(localized: "connection_status_offline"),
+                        color: server.isClientOnline ? .green : .orange
                     )
 
-                    Text(server.lastClientName.isEmpty ? server.lastClientAddress : server.lastClientName)
-                        .font(.system(size: 24, weight: .bold))
-                        .lineLimit(1)
+                    Text(
+                        server.isClientOnline
+                            ? String(localized: "connected_description")
+                            : String(localized: "offline_description")
+                    )
+                    .font(.system(size: 13))
+                    .foregroundStyle(.secondary)
 
-                    Text(String(localized: "Bildirimler Mac’inizde gösteriliyor."))
-                        .font(.system(size: 13))
-                        .foregroundStyle(.secondary)
-
-                    Label(String(localized: "Yerel ağ bağlantısı"), systemImage: "wifi")
-                        .font(.system(size: 13, weight: .medium))
-                        .foregroundStyle(.green)
+                    Label(
+                        server.isClientOnline
+                            ? String(localized: "local_network_active")
+                            : String(localized: "waiting_for_connection"),
+                        systemImage: server.isClientOnline ? "wifi" : "wifi.slash"
+                    )
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(server.isClientOnline ? .green : .orange)
                 }
 
                 Spacer()
@@ -224,11 +231,14 @@ private struct PairedDeviceSection: View {
 
                     VStack(alignment: .leading, spacing: 4) {
                         Text(server.lastClientName.isEmpty ? server.lastClientAddress : server.lastClientName)
-                            .font(.system(size: 16, weight: .semibold))
+                            .font(.system(size: 24, weight: .bold))
+                            .lineLimit(1)
 
-                        Text(lastActiveText)
+                        Text(server.isClientOnline
+                             ? String(localized: "device_online_now")
+                             : lastActiveText)
                             .font(.system(size: 13))
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(server.isClientOnline ? .green : .secondary)
                     }
 
                     Spacer()
@@ -271,9 +281,14 @@ private struct FooterSection: View {
 
     var body: some View {
         HStack(spacing: 10) {
-            Label(String(localized: "Uçtan uca şifreleme aktif"), systemImage: "shield.checkered")
-                .foregroundStyle(.green)
-                .lineLimit(1)
+            Label(
+                server.isClientOnline
+                    ? String(localized: "encryption_active")
+                    : String(localized: "device_offline_footer"),
+                systemImage: server.isClientOnline ? "shield.checkered" : "wifi.slash"
+            )
+            .foregroundStyle(server.isClientOnline ? .green : .orange)
+            .lineLimit(1)
 
             Spacer(minLength: 8)
 
@@ -319,7 +334,7 @@ private struct DeviceIcon: View {
     let isConnected: Bool
 
     private var accentColor: Color {
-        isConnected ? .green : .blue
+        isConnected ? .green : .orange
     }
 
     var body: some View {
@@ -337,7 +352,7 @@ private struct DeviceIcon: View {
                 .fill(accentColor)
                 .frame(width: 30, height: 30)
                 .overlay {
-                    Image(systemName: isConnected ? "checkmark" : "link")
+                    Image(systemName: isConnected ? "checkmark" : "wifi.slash")
                         .font(.system(size: 13, weight: .bold))
                         .foregroundStyle(.white)
                 }

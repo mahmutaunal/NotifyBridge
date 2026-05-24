@@ -44,6 +44,8 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.LaunchedEffect
 import kotlinx.coroutines.delay
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.Modifier
@@ -58,11 +60,13 @@ import com.alpware.notifybridge.network.SendResult
 /**
  * Main screen that shows pairing status, forwarding controls, permissions, and connection actions.
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
     hasNotificationAccess: Boolean,
     bridgeEnabled: Boolean,
     isMacOnline: Boolean,
+    isRefreshingConnection: Boolean,
     macIp: String,
     macPort: String,
     macName: String,
@@ -74,6 +78,7 @@ fun HomeScreen(
     onSendTestNotification: () -> Unit,
     onScanPairingQr: () -> Unit,
     onOpenNotificationSettings: () -> Unit,
+    onRefreshConnection: () -> Unit,
     showNotificationContent: Boolean,
     onShowNotificationContentChanged: (Boolean) -> Unit,
     onRequestBatteryOptimizationIgnore: () -> Unit,
@@ -119,14 +124,19 @@ fun HomeScreen(
             modifier = Modifier.fillMaxSize(),
             color = MaterialTheme.colorScheme.background
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .safeDrawingPadding()
-                    .verticalScroll(rememberScrollState())
-                    .padding(20.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+            PullToRefreshBox(
+                modifier = Modifier.fillMaxSize(),
+                isRefreshing = isRefreshingConnection,
+                onRefresh = onRefreshConnection
             ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .safeDrawingPadding()
+                        .verticalScroll(rememberScrollState())
+                        .padding(20.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
                 HeaderSection(
                     onOpenSettings = onOpenSettings
                 )
@@ -191,8 +201,10 @@ fun HomeScreen(
                     )
                 }
 
-                InfoCard()
+                    InfoCard()
+                }
             }
+
             if (showTestResultDialog && sendResult != null) {
                 ConnectionTestResultDialog(
                     sendResult = sendResult,

@@ -5,7 +5,6 @@ import com.alpware.notifybridge.core.MacConnectionStore
 import java.net.HttpURLConnection
 import java.net.URL
 
-
 /**
  * Performs lightweight connectivity checks against the paired Mac device.
  */
@@ -16,37 +15,38 @@ object ConnectionHealthClient {
      */
     fun check(
         context: Context,
-        onResult: (Boolean) -> Unit
+        onResult: (ConnectionHealthResult) -> Unit
     ) {
         Thread {
-            runCatching {
-                // Load the currently paired Mac connection details.
+            val result = runCatching {
                 val macIp = MacConnectionStore.getMacIp(context)
                 val macPort = MacConnectionStore.getMacPort(context)
+                val token = MacConnectionStore.getPairingToken(context)
 
-                if (macIp.isBlank()) {
-                    false
-                } else {
-                    // Call the lightweight health endpoint exposed by the Mac app.
-                    val url = URL("http://$macIp:$macPort/health")
-                    val connection = url.openConnection() as HttpURLConnection
-
-                    connection.requestMethod = "GET"
-                    connection.connectTimeout = 1500
-                    connection.readTimeout = 1500
-
-                    // Treat HTTP 200 as a healthy and reachable connection state.
-                    val success = connection.responseCode == 200
-                    connection.disconnect()
-
-                    success
+                if (macIp.isBlank() || token.isBlank()) {
+                    return@runCatching ConnectionHealthResult.PairingInvalid
                 }
-            }.onSuccess {
-                onResult(it)
-            }.onFailure {
-                // Any network or parsing failure is treated as offline.
-                onResult(false)
+
+                val url = URL("http://$macIp:$macPort/health")
+                val connection = url.openConnection() as HttpURLConnection
+
+                connection.requestMethod = "GET"
+                connection.connectTimeout = 1500
+                connection.readTimeout = 1500
+                connection.setRequestProperty("X-NotifyBridge-Token", token)
+
+                when (connection.responseCode) {
+                    200 -> ConnectionHealthResult.Online
+                    401, 403 -> ConnectionHealthResult.PairingInvalid
+                    else -> ConnectionHealthResult.Offline
+                }.also {
+                    connection.disconnect()
+                }
+            }.getOrElse {
+                ConnectionHealthResult.Offline
             }
+
+            onResult(result)
         }.start()
     }
 }

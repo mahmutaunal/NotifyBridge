@@ -222,7 +222,23 @@ final class LocalNotificationServer: ObservableObject {
         }
         
         if requestText.hasPrefix("GET /health") {
+            guard validateHealthToken(requestText: requestText) else {
+                sendUnauthorized(connection)
+                return
+            }
+
             markClientHeartbeat(connection: connection)
+            sendOk(connection)
+            return
+        }
+        
+        if requestText.hasPrefix("POST /unpair") {
+            guard validateHealthToken(requestText: requestText) else {
+                sendUnauthorized(connection)
+                return
+            }
+
+            resetPairing()
             sendOk(connection)
             return
         }
@@ -530,6 +546,14 @@ final class LocalNotificationServer: ObservableObject {
             UserDefaults.standard.set(address, forKey: "lastClientAddress")
             UserDefaults.standard.set(Date(), forKey: "lastClientHeartbeatDate")
         }
+    }
+    
+    private func validateHealthToken(requestText: String) -> Bool {
+        guard let token = headerValue("X-NotifyBridge-Token", from: requestText) else {
+            return false
+        }
+
+        return token == pairingToken
     }
 
     /// Clears the paired device state and rotates the pairing token.
