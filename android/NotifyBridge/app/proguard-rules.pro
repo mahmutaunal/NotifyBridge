@@ -23,9 +23,29 @@
 # ---------------------------------------------------------
 # ZXing / JourneyApps QR Scanner
 # ---------------------------------------------------------
+-keep class com.google.zxing.** { *; }
 -keep class com.journeyapps.barcodescanner.** { *; }
 -dontwarn com.google.zxing.**
 -dontwarn com.journeyapps.barcodescanner.**
+
+# ---------------------------------------------------------
+# CameraX
+# ---------------------------------------------------------
+-keep class androidx.camera.** { *; }
+-keep interface androidx.camera.** { *; }
+-dontwarn androidx.camera.**
+
+# ---------------------------------------------------------
+# ML Kit Barcode Scanning / Google Play Services
+# ---------------------------------------------------------
+-keep class com.google.mlkit.** { *; }
+-keep class com.google.android.gms.** { *; }
+-keep class com.google.android.odml.** { *; }
+-keep class com.google.firebase.components.** { *; }
+-dontwarn com.google.mlkit.**
+-dontwarn com.google.android.gms.**
+-dontwarn com.google.android.odml.**
+-dontwarn com.google.firebase.components.**
 
 # ---------------------------------------------------------
 # Gson
