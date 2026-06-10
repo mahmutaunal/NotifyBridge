@@ -31,6 +31,8 @@ import androidx.compose.material.icons.outlined.Policy
 import androidx.compose.material.icons.outlined.Security
 import androidx.compose.material.icons.outlined.Store
 import androidx.compose.material.icons.outlined.Tune
+import androidx.compose.material.icons.outlined.Palette
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -38,12 +40,18 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -58,6 +66,24 @@ import com.alpware.notifybridge.BuildConfig
 private const val GITHUB_URL = "https://github.com/mahmutaunal"
 private const val ALPWARE_URL = "https://www.alpwarestudio.com/"
 private const val GOOGLE_PLAY_URL = "https://play.google.com/store/apps/dev?id=5245599652065968716"
+
+/**
+ * User-selectable app theme preference.
+ */
+enum class AppThemeMode {
+    SYSTEM,
+    LIGHT,
+    DARK
+}
+
+/**
+ * User-selectable app language preference.
+ */
+enum class AppLanguageMode {
+    SYSTEM,
+    TURKISH,
+    ENGLISH
+}
 
 /**
  * Settings screen for permissions, connection security, app information, and developer links.
@@ -79,8 +105,16 @@ fun SettingsScreen(
     onRequestBatteryOptimizationIgnore: () -> Unit,
     onRequestPostNotificationPermission: () -> Unit,
     onRequestCameraPermission: () -> Unit,
-    onOpenUrl: (String) -> Unit
+    onOpenUrl: (String) -> Unit,
+    currentThemeMode: AppThemeMode = AppThemeMode.SYSTEM,
+    onThemeModeChanged: (AppThemeMode) -> Unit = {},
+    currentLanguageMode: AppLanguageMode = AppLanguageMode.SYSTEM,
+    onLanguageModeChanged: (AppLanguageMode) -> Unit = {},
+    onRestartApp: () -> Unit = {}
 ) {
+    var showNotificationAccessDisclosure by remember { mutableStateOf(false) }
+    var showLanguageRestartDialog by remember { mutableStateOf(false) }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -130,10 +164,22 @@ fun SettingsScreen(
                     isIgnoringBatteryOptimizations = isIgnoringBatteryOptimizations,
                     isPostNotificationPermissionGranted = isPostNotificationPermissionGranted,
                     isCameraPermissionGranted = isCameraPermissionGranted,
-                    onOpenNotificationSettings = onOpenNotificationSettings,
+                    onOpenNotificationSettings = {
+                        showNotificationAccessDisclosure = true
+                    },
                     onRequestBatteryOptimizationIgnore = onRequestBatteryOptimizationIgnore,
                     onRequestPostNotificationPermission = onRequestPostNotificationPermission,
                     onRequestCameraPermission = onRequestCameraPermission
+                )
+
+                AppearanceCard(
+                    currentThemeMode = currentThemeMode,
+                    onThemeModeChanged = onThemeModeChanged,
+                    currentLanguageMode = currentLanguageMode,
+                    onLanguageModeChanged = { mode ->
+                        onLanguageModeChanged(mode)
+                        showLanguageRestartDialog = true
+                    }
                 )
 
                 SecurityCard(
@@ -150,6 +196,30 @@ fun SettingsScreen(
 
                 DeveloperCard(
                     onOpenUrl = onOpenUrl
+                )
+            }
+
+            if (showNotificationAccessDisclosure) {
+                NotificationAccessDisclosureDialog(
+                    onDismiss = {
+                        showNotificationAccessDisclosure = false
+                    },
+                    onContinue = {
+                        showNotificationAccessDisclosure = false
+                        onOpenNotificationSettings()
+                    }
+                )
+            }
+
+            if (showLanguageRestartDialog) {
+                LanguageRestartDialog(
+                    onDismiss = {
+                        showLanguageRestartDialog = false
+                    },
+                    onRestart = {
+                        showLanguageRestartDialog = false
+                        onRestartApp()
+                    }
                 )
             }
         }
@@ -615,5 +685,417 @@ private fun SettingsDivider() {
     HorizontalDivider(
         modifier = Modifier.padding(start = 66.dp),
         color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.70f)
+    )
+}
+
+@Composable
+private fun NotificationAccessDisclosureDialog(
+    onDismiss: () -> Unit,
+    onContinue: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = stringResource(R.string.notification_access_disclosure_title),
+                fontWeight = FontWeight.SemiBold
+            )
+        },
+        text = {
+            Text(
+                text = stringResource(R.string.notification_access_disclosure_message),
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = onContinue) {
+                Text(
+                    stringResource(
+                        R.string.notification_access_disclosure_continue
+                    )
+                )
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.common_cancel))
+            }
+        }
+    )
+}
+/**
+ * Lets the user choose app appearance and language preferences.
+ */
+@Composable
+private fun AppearanceCard(
+    currentThemeMode: AppThemeMode,
+    onThemeModeChanged: (AppThemeMode) -> Unit,
+    currentLanguageMode: AppLanguageMode,
+    onLanguageModeChanged: (AppLanguageMode) -> Unit
+) {
+    var showThemeDialog by remember {
+        mutableStateOf(false)
+    }
+    var showLanguageDialog by remember {
+        mutableStateOf(false)
+    }
+
+    SettingsCard(
+        title = stringResource(R.string.settings_appearance_title),
+        subtitle = stringResource(R.string.settings_appearance_subtitle)
+    ) {
+        SettingsRow(
+            icon = Icons.Outlined.Palette,
+            title = stringResource(R.string.settings_theme_title),
+            description = stringResource(R.string.settings_theme_description),
+            trailingText = currentThemeMode.label(),
+            onClick = {
+                showThemeDialog = true
+            }
+        )
+
+        SettingsDivider()
+
+        SettingsRow(
+            icon = Icons.Outlined.Language,
+            title = stringResource(R.string.settings_language_title),
+            description = stringResource(R.string.settings_language_description),
+            trailingText = currentLanguageMode.label(),
+            onClick = {
+                showLanguageDialog = true
+            }
+        )
+    }
+
+    if (showThemeDialog) {
+        ThemeModeDialog(
+            currentThemeMode = currentThemeMode,
+            onDismiss = {
+                showThemeDialog = false
+            },
+            onThemeModeChanged = {
+                showThemeDialog = false
+                onThemeModeChanged(it)
+            }
+        )
+    }
+
+    if (showLanguageDialog) {
+        LanguageModeDialog(
+            currentLanguageMode = currentLanguageMode,
+            onDismiss = {
+                showLanguageDialog = false
+            },
+            onLanguageModeChanged = {
+                showLanguageDialog = false
+                onLanguageModeChanged(it)
+            }
+        )
+    }
+}
+@Composable
+private fun LanguageModeDialog(
+    currentLanguageMode: AppLanguageMode,
+    onDismiss: () -> Unit,
+    onLanguageModeChanged: (AppLanguageMode) -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = stringResource(
+                    R.string.settings_language_dialog_title
+                )
+            )
+        },
+        text = {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                LanguageModeOption(
+                    title = stringResource(
+                        R.string.settings_language_system_title
+                    ),
+                    description = stringResource(
+                        R.string.settings_language_system_description
+                    ),
+                    selected = currentLanguageMode == AppLanguageMode.SYSTEM,
+                    onClick = {
+                        onLanguageModeChanged(AppLanguageMode.SYSTEM)
+                    }
+                )
+
+                LanguageModeOption(
+                    title = stringResource(
+                        R.string.settings_language_turkish_title
+                    ),
+                    description = stringResource(
+                        R.string.settings_language_turkish_description
+                    ),
+                    selected = currentLanguageMode == AppLanguageMode.TURKISH,
+                    onClick = {
+                        onLanguageModeChanged(AppLanguageMode.TURKISH)
+                    }
+                )
+
+                LanguageModeOption(
+                    title = stringResource(
+                        R.string.settings_language_english_title
+                    ),
+                    description = stringResource(
+                        R.string.settings_language_english_description
+                    ),
+                    selected = currentLanguageMode == AppLanguageMode.ENGLISH,
+                    onClick = {
+                        onLanguageModeChanged(AppLanguageMode.ENGLISH)
+                    }
+                )
+            }
+        },
+        dismissButton = {
+            TextButton(
+                onClick = onDismiss
+            ) {
+                Text(
+                    stringResource(R.string.common_cancel)
+                )
+            }
+        },
+        confirmButton = {}
+    )
+}
+@Composable
+private fun LanguageModeOption(
+    title: String,
+    description: String,
+    selected: Boolean,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .clickable(onClick = onClick)
+            .padding(12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(
+            modifier = Modifier.weight(1f)
+        ) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold
+            )
+
+            Text(
+                text = description,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+
+        RadioButton(
+            selected = selected,
+            onClick = onClick
+        )
+    }
+}
+
+@Composable
+private fun ThemeModeDialog(
+    currentThemeMode: AppThemeMode,
+    onDismiss: () -> Unit,
+    onThemeModeChanged: (AppThemeMode) -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = stringResource(
+                    R.string.settings_theme_dialog_title
+                )
+            )
+        },
+        text = {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+
+                ThemeModeOption(
+                    title = stringResource(
+                        R.string.settings_theme_system_title
+                    ),
+                    description = stringResource(
+                        R.string.settings_theme_system_description
+                    ),
+                    selected = currentThemeMode == AppThemeMode.SYSTEM,
+                    onClick = {
+                        onThemeModeChanged(AppThemeMode.SYSTEM)
+                    }
+                )
+
+                ThemeModeOption(
+                    title = stringResource(
+                        R.string.settings_theme_light_title
+                    ),
+                    description = stringResource(
+                        R.string.settings_theme_light_description
+                    ),
+                    selected = currentThemeMode == AppThemeMode.LIGHT,
+                    onClick = {
+                        onThemeModeChanged(AppThemeMode.LIGHT)
+                    }
+                )
+
+                ThemeModeOption(
+                    title = stringResource(
+                        R.string.settings_theme_dark_title
+                    ),
+                    description = stringResource(
+                        R.string.settings_theme_dark_description
+                    ),
+                    selected = currentThemeMode == AppThemeMode.DARK,
+                    onClick = {
+                        onThemeModeChanged(AppThemeMode.DARK)
+                    }
+                )
+            }
+        },
+        dismissButton = {
+            TextButton(
+                onClick = onDismiss
+            ) {
+                Text(
+                    stringResource(R.string.common_cancel)
+                )
+            }
+        },
+        confirmButton = {}
+    )
+}
+
+@Composable
+private fun ThemeModeOption(
+    title: String,
+    description: String,
+    selected: Boolean,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .clickable(onClick = onClick)
+            .padding(12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+
+        Column(
+            modifier = Modifier.weight(1f)
+        ) {
+
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold
+            )
+
+            Text(
+                text = description,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+
+        RadioButton(
+            selected = selected,
+            onClick = onClick
+        )
+    }
+}
+
+/**
+ * Returns the user-facing label for a theme mode.
+ */
+@Composable
+private fun AppThemeMode.label(): String {
+    return when (this) {
+        AppThemeMode.SYSTEM ->
+            stringResource(
+                R.string.settings_theme_system_title
+            )
+
+        AppThemeMode.LIGHT ->
+            stringResource(
+                R.string.settings_theme_light_title
+            )
+
+        AppThemeMode.DARK ->
+            stringResource(
+                R.string.settings_theme_dark_title
+            )
+    }
+}
+
+/**
+ * Returns the user-facing label for a language mode.
+ */
+@Composable
+private fun AppLanguageMode.label(): String {
+    return when (this) {
+        AppLanguageMode.SYSTEM ->
+            stringResource(
+                R.string.settings_language_system_title
+            )
+
+        AppLanguageMode.TURKISH ->
+            stringResource(
+                R.string.settings_language_turkish_title
+            )
+
+        AppLanguageMode.ENGLISH ->
+            stringResource(
+                R.string.settings_language_english_title
+            )
+    }
+}
+
+fun AppLanguageMode.languageTag(): String? {
+    return when (this) {
+        AppLanguageMode.SYSTEM -> null
+        AppLanguageMode.TURKISH -> "tr"
+        AppLanguageMode.ENGLISH -> "en"
+    }
+}
+@Composable
+private fun LanguageRestartDialog(
+    onDismiss: () -> Unit,
+    onRestart: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = stringResource(R.string.language_restart_dialog_title),
+                fontWeight = FontWeight.SemiBold
+            )
+        },
+        text = {
+            Text(
+                text = stringResource(R.string.language_restart_dialog_message),
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = onRestart) {
+                Text(stringResource(R.string.language_restart_dialog_restart_now))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.language_restart_dialog_later))
+            }
+        }
     )
 }

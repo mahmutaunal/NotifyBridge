@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		50DC50C32FD99DD100675B21 /* X509 in Frameworks */ = {isa = PBXBuildFile; productRef = 50DC50C22FD99DD100675B21 /* X509 */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
 		50256B8C2FB494D000AFA804 /* NotifyBridgeMac.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = NotifyBridgeMac.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -23,6 +27,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				50DC50C32FD99DD100675B21 /* X509 in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -65,6 +70,7 @@
 			);
 			name = NotifyBridgeMac;
 			packageProductDependencies = (
+				50DC50C22FD99DD100675B21 /* X509 */,
 			);
 			productName = NotifyBridgeMac;
 			productReference = 50256B8C2FB494D000AFA804 /* NotifyBridgeMac.app */;
@@ -95,6 +101,9 @@
 			);
 			mainGroup = 50256B832FB494D000AFA804;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				50DC50C12FD99DD100675B21 /* XCRemoteSwiftPackageReference "swift-certificates" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 50256B8D2FB494D000AFA804 /* Products */;
 			projectDirPath = "";
@@ -260,6 +269,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				AUTOMATION_APPLE_EVENTS = NO;
+				CODE_SIGN_ENTITLEMENTS = NotifyBridgeMac/NotifyBridgeMac.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 4;
@@ -312,6 +322,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				AUTOMATION_APPLE_EVENTS = NO;
+				CODE_SIGN_ENTITLEMENTS = NotifyBridgeMac/NotifyBridgeMac.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 4;
@@ -380,6 +391,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		50DC50C12FD99DD100675B21 /* XCRemoteSwiftPackageReference "swift-certificates" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/apple/swift-certificates.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.19.1;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		50DC50C22FD99DD100675B21 /* X509 */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 50DC50C12FD99DD100675B21 /* XCRemoteSwiftPackageReference "swift-certificates" */;
+			productName = X509;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 50256B842FB494D000AFA804 /* Project object */;
 }

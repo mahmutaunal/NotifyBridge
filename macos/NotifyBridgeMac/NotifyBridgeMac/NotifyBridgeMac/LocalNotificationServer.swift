@@ -9,6 +9,7 @@ import Foundation
 import Network
 import Combine
 import CryptoKit
+import Security
 
 /// Runs the local TCP server that receives encrypted notifications from paired Android devices.
 final class LocalNotificationServer: ObservableObject {
@@ -33,6 +34,9 @@ final class LocalNotificationServer: ObservableObject {
     
     @Published var pairingCode: String = UUID().uuidString
     private var pairingCodeCreatedAt = Date()
+    
+    private let pairingCodeLifetime: TimeInterval = 120
+    private let pairingCodeRefreshThreshold: TimeInterval = 90
 
     /// Human-readable relative time for the most recent Android client connection.
     var lastConnectionText: String? {
@@ -58,7 +62,8 @@ final class LocalNotificationServer: ObservableObject {
             URLQueryItem(name: "host", value: pairingHost),
             URLQueryItem(name: "port", value: "8787"),
             URLQueryItem(name: "code", value: pairingCode),
-            URLQueryItem(name: "name", value: macName)
+            URLQueryItem(name: "name", value: macName),
+            URLQueryItem(name: "fingerprint", value: TLSIdentityManager.shared.fingerprint ?? "")
         ]
 
         return components?.url?.absoluteString ?? ""
@@ -91,7 +96,21 @@ final class LocalNotificationServer: ObservableObject {
         guard listener == nil else { return }
 
         do {
-            let listener = try NWListener(using: .tcp, on: port)
+            guard let identity = TLSIdentityManager.shared.identity else {
+                print("TLS identity is missing")
+                return
+            }
+
+            let tlsOptions = NWProtocolTLS.Options()
+            sec_protocol_options_set_local_identity(
+                tlsOptions.securityProtocolOptions,
+                sec_identity_create(identity)!
+            )
+
+            let parameters = NWParameters(tls: tlsOptions)
+            parameters.allowLocalEndpointReuse = true
+
+            let listener = try NWListener(using: parameters, on: port)
             self.listener = listener
 
             listener.newConnectionHandler = { [weak self] connection in
@@ -244,7 +263,6 @@ final class LocalNotificationServer: ObservableObject {
         }
 
         guard requestText.hasPrefix("POST /notify") else {
-            sendNotFound(connection)
             sendNotFound(connection)
             return
         }
@@ -481,7 +499,7 @@ final class LocalNotificationServer: ObservableObject {
         }
 
         let age = Date().timeIntervalSince(pairingCodeCreatedAt)
-        guard age < 120 else {
+        guard age < pairingCodeLifetime else {
             rotatePairingCode()
             sendUnauthorized(connection)
             return
@@ -524,7 +542,7 @@ final class LocalNotificationServer: ObservableObject {
     func refreshPairingCodeIfNeeded(force: Bool = false) {
         let age = Date().timeIntervalSince(pairingCodeCreatedAt)
 
-        if force || age > 90 {
+        if force || age > pairingCodeRefreshThreshold {
             rotatePairingCode()
         }
     }
@@ -565,12 +583,14 @@ final class LocalNotificationServer: ObservableObject {
         lastClientAddress = ""
         lastConnectionDate = nil
         lastClientName = ""
+        lastClientHeartbeatDate = nil
 
         UserDefaults.standard.set(token, forKey: "pairingToken")
         UserDefaults.standard.set(false, forKey: "pairingCompleted")
         UserDefaults.standard.removeObject(forKey: "lastClientAddress")
         UserDefaults.standard.removeObject(forKey: "lastConnectionDate")
         UserDefaults.standard.removeObject(forKey: "lastClientName")
+        UserDefaults.standard.removeObject(forKey: "lastClientHeartbeatDate")
     }
 }
 

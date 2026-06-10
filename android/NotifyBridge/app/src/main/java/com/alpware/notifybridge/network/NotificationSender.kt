@@ -8,8 +8,6 @@ import com.alpware.notifybridge.core.MacConnectionStore
 import com.alpware.notifybridge.notification.NotificationPayload
 import com.google.gson.Gson
 import java.io.OutputStreamWriter
-import java.net.HttpURLConnection
-import java.net.URL
 import java.util.UUID
 import javax.crypto.Mac
 import javax.crypto.spec.SecretKeySpec
@@ -37,14 +35,11 @@ object NotificationSender {
         Thread {
             try {
                 val macIp = MacConnectionStore.getMacIp(context)
-                val macPort = MacConnectionStore.getMacPort(context)
 
                 if (macIp.isBlank()) {
                     Log.d(TAG, "Mac IP is empty. Notification not sent.")
                     return@Thread
                 }
-
-                val url = URL("http://$macIp:$macPort/notify")
 
                 val pairingToken = MacConnectionStore.getPairingToken(context)
                 if (pairingToken.isBlank()) {
@@ -67,7 +62,10 @@ object NotificationSender {
                 val signature = hmacSha256Base64(pairingToken, signingMessage)
 
                 // Attach signed request metadata for basic request validation.
-                val connection = url.openConnection() as HttpURLConnection
+                val connection = PinnedHttpsClient.openConnection(
+                    context = context,
+                    path = "/notify"
+                )
                 connection.requestMethod = "POST"
                 connection.connectTimeout = 3000
                 connection.readTimeout = 3000
@@ -118,14 +116,11 @@ object NotificationSender {
         Thread {
             try {
                 val macIp = MacConnectionStore.getMacIp(context)
-                val macPort = MacConnectionStore.getMacPort(context)
 
                 if (macIp.isBlank()) {
-                    onResult(SendResult.Error("Mac IP adresi boş"))
+                    onResult(SendResult.Error("Mac IP empty"))
                     return@Thread
                 }
-
-                val url = URL("http://$macIp:$macPort/notify")
 
                 val pairingToken = MacConnectionStore.getPairingToken(context)
                 if (pairingToken.isBlank()) {
@@ -147,7 +142,10 @@ object NotificationSender {
                 val signature = hmacSha256Base64(pairingToken, signingMessage)
 
                 // Attach request verification headers before sending the test payload.
-                val connection = url.openConnection() as HttpURLConnection
+                val connection = PinnedHttpsClient.openConnection(
+                    context = context,
+                    path = "/notify"
+                )
                 connection.requestMethod = "POST"
                 connection.connectTimeout = 3000
                 connection.readTimeout = 3000

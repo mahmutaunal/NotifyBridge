@@ -7,6 +7,7 @@
 
 import Foundation
 
+/// Response returned to Android after a successful pairing request.
 struct PairingResponse: Codable {
     let type: String
     let host: String

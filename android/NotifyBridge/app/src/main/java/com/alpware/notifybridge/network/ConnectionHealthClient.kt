@@ -2,8 +2,6 @@ package com.alpware.notifybridge.network
 
 import android.content.Context
 import com.alpware.notifybridge.core.MacConnectionStore
-import java.net.HttpURLConnection
-import java.net.URL
 
 /**
  * Performs lightweight connectivity checks against the paired Mac device.
@@ -20,15 +18,18 @@ object ConnectionHealthClient {
         Thread {
             val result = runCatching {
                 val macIp = MacConnectionStore.getMacIp(context)
-                val macPort = MacConnectionStore.getMacPort(context)
                 val token = MacConnectionStore.getPairingToken(context)
 
                 if (macIp.isBlank() || token.isBlank()) {
                     return@runCatching ConnectionHealthResult.PairingInvalid
                 }
 
-                val url = URL("http://$macIp:$macPort/health")
-                val connection = url.openConnection() as HttpURLConnection
+                val connection = PinnedHttpsClient.openConnection(
+                    context = context,
+                    path = "/health",
+                    connectTimeout = 1500,
+                    readTimeout = 1500
+                )
 
                 connection.requestMethod = "GET"
                 connection.connectTimeout = 1500

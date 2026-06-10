@@ -8,5 +8,6 @@ data class PairingPayload(
     val host: String,
     val port: Int,
     val code: String,
-    val name: String?
+    val name: String?,
+    val fingerprint: String
 )

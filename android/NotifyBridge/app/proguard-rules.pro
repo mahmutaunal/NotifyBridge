@@ -21,14 +21,6 @@
 -keep class com.alpware.notifybridge.service.BridgeForegroundService { *; }
 
 # ---------------------------------------------------------
-# ZXing / JourneyApps QR Scanner
-# ---------------------------------------------------------
--keep class com.google.zxing.** { *; }
--keep class com.journeyapps.barcodescanner.** { *; }
--dontwarn com.google.zxing.**
--dontwarn com.journeyapps.barcodescanner.**
-
-# ---------------------------------------------------------
 # CameraX
 # ---------------------------------------------------------
 -keep class androidx.camera.** { *; }
@@ -90,3 +82,6 @@
 -keep class com.alpware.notifybridge.core.** { *; }
 -keep class com.alpware.notifybridge.network.CryptoManager { *; }
 -keep class com.alpware.notifybridge.network.NotificationSender { *; }
+-keep class com.alpware.notifybridge.pairing.PairingRequest { *; }
+-keep class com.alpware.notifybridge.pairing.PairingResponse { *; }
+-keep class com.alpware.notifybridge.network.ConnectionHealthResult { *; }

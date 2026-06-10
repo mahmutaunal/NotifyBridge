@@ -5,8 +5,12 @@ import com.alpware.notifybridge.core.DeviceNameResolver
 import com.alpware.notifybridge.pairing.PairingRequest
 import com.alpware.notifybridge.pairing.PairingResponse
 import com.google.gson.Gson
-import java.net.HttpURLConnection
 import java.net.URL
+import java.security.MessageDigest
+import java.security.cert.X509Certificate
+import javax.net.ssl.HttpsURLConnection
+import javax.net.ssl.SSLContext
+import javax.net.ssl.X509TrustManager
 
 /**
  * Handles the initial pairing handshake between the Android device and the Mac app.
@@ -21,11 +25,12 @@ object PairingClient {
         host: String,
         port: Int,
         code: String,
+        fingerprint: String,
         onResult: (Result<PairingResponse>) -> Unit
     ) {
         Thread {
             runCatching {
-                val url = URL("http://$host:$port/pair")
+                val url = URL("https://$host:$port/pair")
                 // Include a readable Android device name for the Mac pairing UI.
                 val request = PairingRequest(
                     code = code,
@@ -36,7 +41,10 @@ object PairingClient {
                 val json = Gson().toJson(request)
 
                 // Open a direct HTTP connection to the local Mac pairing server.
-                val connection = url.openConnection() as HttpURLConnection
+                val connection = openPinnedConnection(
+                    url = url,
+                    expectedFingerprint = fingerprint
+                )
                 connection.requestMethod = "POST"
                 connection.connectTimeout = 3000
                 connection.readTimeout = 3000
@@ -72,5 +80,52 @@ object PairingClient {
                 onResult(Result.failure(it))
             }
         }.start()
+    }
+}
+
+private fun openPinnedConnection(
+    url: URL,
+    expectedFingerprint: String
+): HttpsURLConnection {
+    val normalizedExpectedFingerprint = expectedFingerprint.lowercase()
+
+    val trustManager = object : X509TrustManager {
+        override fun checkClientTrusted(
+            chain: Array<out X509Certificate>?,
+            authType: String?
+        ) = Unit
+
+        override fun checkServerTrusted(
+            chain: Array<out X509Certificate>?,
+            authType: String?
+        ) {
+            val certificate = chain?.firstOrNull()
+                ?: error("Server certificate is missing")
+
+            val actualFingerprint = certificate.sha256Fingerprint()
+
+            if (actualFingerprint != normalizedExpectedFingerprint) {
+                error("TLS fingerprint mismatch")
+            }
+        }
+
+        override fun getAcceptedIssuers(): Array<X509Certificate> = emptyArray()
+    }
+
+    val sslContext = SSLContext.getInstance("TLS")
+    sslContext.init(null, arrayOf(trustManager), null)
+
+    return (url.openConnection() as HttpsURLConnection).apply {
+        sslSocketFactory = sslContext.socketFactory
+        hostnameVerifier = { _, _ -> true }
+    }
+}
+
+private fun X509Certificate.sha256Fingerprint(): String {
+    val digest = MessageDigest.getInstance("SHA-256")
+        .digest(encoded)
+
+    return digest.joinToString("") { byte ->
+        "%02x".format(byte)
     }
 }

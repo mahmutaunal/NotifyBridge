@@ -15,6 +15,8 @@ struct NotifyBridgeMacApp: App {
     @StateObject private var server: LocalNotificationServer
 
     init() {
+        _ = TLSIdentityManager.shared
+        
         let localServer = LocalNotificationServer()
 
         // Start listening immediately when the app launches.

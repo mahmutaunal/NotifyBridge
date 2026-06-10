@@ -7,6 +7,7 @@
 
 import SwiftUI
 import AppKit
+import Combine
 
 struct MenuBarContent: View {
 
@@ -90,10 +91,6 @@ private struct ConnectedHeader: View {
                 }
 
                 Spacer()
-
-                Image(systemName: "chevron.right")
-                    .font(.title2)
-                    .foregroundStyle(.secondary)
             }
         }
     }
@@ -133,6 +130,10 @@ private struct PairingHeader: View {
 private struct PairingQRCodeSection: View {
 
     @ObservedObject var server: LocalNotificationServer
+    
+    private let pairingCodeTimer =
+        Timer.publish(every: 30, on: .main, in: .common)
+            .autoconnect()
 
     var body: some View {
         CardContainer {
@@ -173,8 +174,8 @@ private struct PairingQRCodeSection: View {
                     .foregroundStyle(.secondary)
             }
             .frame(maxWidth: .infinity)
-            .onAppear {
-                server.refreshPairingCodeIfNeeded(force: true)
+            .onReceive(pairingCodeTimer) { _ in
+                server.refreshPairingCodeIfNeeded()
             }
         }
     }
@@ -257,11 +258,26 @@ private struct PairedDeviceSection: View {
                     }
                 }
 
-                if showQr {
+                if showQr && !server.isClientOnline {
                     Divider()
 
                     PairingQRCodeSection(server: server)
                 }
+            }
+        }
+        .onChange(of: server.lastClientHeartbeatDate) { _, _ in
+            if server.isClientOnline {
+                showQr = false
+            }
+        }
+        .onChange(of: server.lastClientName) { _, _ in
+            if server.isClientOnline {
+                showQr = false
+            }
+        }
+        .onChange(of: server.pairingCompleted) { _, isPaired in
+            if !isPaired {
+                showQr = false
             }
         }
     }
@@ -294,7 +310,12 @@ private struct FooterSection: View {
 
             Button(String(localized: "Sunucuyu Yeniden Başlat")) {
                 server.stop()
-                server.start()
+                
+                DispatchQueue.main.asyncAfter(
+                    deadline: .now() + 0.3
+                ) {
+                    server.start()
+                }
             }
 
             Divider()

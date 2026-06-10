@@ -13,6 +13,7 @@ object MacConnectionStore {
     private const val KEY_MAC_PORT = "mac_port"
     private const val KEY_PAIRING_TOKEN = "pairing_token"
     private const val KEY_MAC_NAME = "mac_name"
+    private const val KEY_MAC_CERT_FINGERPRINT = "mac_cert_fingerprint"
 
     /**
      * Returns the last paired Mac IP address.
@@ -62,23 +63,19 @@ object MacConnectionStore {
             }
     }
 
-    /**
-     * Returns the shared secret generated during QR pairing.
-     */
     fun getPairingToken(context: Context): String {
-        return context
-            .getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
-            .getString(KEY_PAIRING_TOKEN, "") ?: ""
+        return SecureStringStore.getString(context, KEY_PAIRING_TOKEN)
     }
 
-    /**
-     * Persists the shared secret used for request signing and encryption.
-     */
     fun setPairingToken(context: Context, token: String) {
-        context
-            .getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
-            .edit {
-                putString(KEY_PAIRING_TOKEN, token)
-            }
+        SecureStringStore.putString(context, KEY_PAIRING_TOKEN, token)
+    }
+
+    fun getMacCertFingerprint(context: Context): String {
+        return SecureStringStore.getString(context, KEY_MAC_CERT_FINGERPRINT)
+    }
+
+    fun setMacCertFingerprint(context: Context, fingerprint: String) {
+        SecureStringStore.putString(context, KEY_MAC_CERT_FINGERPRINT, fingerprint)
     }
 }

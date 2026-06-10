@@ -3,10 +3,12 @@ package com.alpware.notifybridge.service
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.app.PendingIntent
 import android.app.Service
 import android.content.Intent
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
+import com.alpware.notifybridge.MainActivity
 import com.alpware.notifybridge.R
 
 /**
@@ -33,11 +35,20 @@ class BridgeForegroundService : Service() {
      * Builds the low-priority foreground notification shown by Android.
      */
     private fun buildNotification(): Notification {
+        val pendingIntent = PendingIntent.getActivity(
+            this,
+            0,
+            Intent(this, MainActivity::class.java),
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
+
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notify_bridge_tile)
             .setContentTitle(getString(R.string.foreground_notification_title))
             .setContentText(getString(R.string.foreground_notification_message))
+            .setContentIntent(pendingIntent)
             .setOngoing(true)
+            .setOnlyAlertOnce(true)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .build()
     }

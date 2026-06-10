@@ -3,6 +3,7 @@ package com.alpware.notifybridge
 import android.Manifest
 import android.annotation.SuppressLint
 import android.content.ComponentName
+import android.content.Context
 import android.content.Intent
 import android.content.pm.ResolveInfo
 import android.content.pm.PackageManager
@@ -32,16 +33,23 @@ import com.alpware.notifybridge.service.BridgeServiceController
 import androidx.core.net.toUri
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import com.alpware.notifybridge.core.AppFilterStore
+import com.alpware.notifybridge.core.AppLanguageManager
+import com.alpware.notifybridge.core.LanguageStore
+import com.alpware.notifybridge.core.LocaleContextWrapper
 import com.alpware.notifybridge.core.PrivacyStore
+import com.alpware.notifybridge.core.ThemeStore
 import com.alpware.notifybridge.model.InstalledAppItem
 import com.alpware.notifybridge.network.ConnectionHealthClient
 import com.alpware.notifybridge.network.ConnectionHealthResult
 import com.alpware.notifybridge.network.PairingClient
 import com.alpware.notifybridge.network.UnpairClient
 import com.alpware.notifybridge.ui.AppFilterScreen
+import com.alpware.notifybridge.ui.AppLanguageMode
+import com.alpware.notifybridge.ui.AppThemeMode
 import com.alpware.notifybridge.ui.HomeScreen
 import com.alpware.notifybridge.ui.QrScannerScreen
 import com.alpware.notifybridge.ui.SettingsScreen
+import com.alpware.notifybridge.ui.languageTag
 import com.alpware.notifybridge.ui.theme.NotifyBridgeTheme
 
 /**
@@ -65,6 +73,8 @@ class MainActivity : ComponentActivity() {
     private val sendAllAppsState = mutableStateOf(true)
     private val macOnlineState = mutableStateOf(false)
     private val isRefreshingConnectionState = mutableStateOf(false)
+    private val themeModeState = mutableStateOf(AppThemeMode.SYSTEM)
+    private val languageModeState = mutableStateOf(AppLanguageMode.SYSTEM)
 
     // Refreshes permission-dependent state after the notification permission dialog closes.
     private val notificationPermissionLauncher =
@@ -85,15 +95,31 @@ class MainActivity : ComponentActivity() {
             }
         }
 
+    override fun attachBaseContext(newBase: Context) {
+        val languageMode = LanguageStore.getLanguageMode(newBase)
+
+        super.attachBaseContext(
+            LocaleContextWrapper.wrap(
+                context = newBase,
+                languageTag = languageMode.languageTag()
+            )
+        )
+    }
+
     /**
      * Initializes app state, permissions, discovery, and the main Compose content.
      */
     override fun onCreate(savedInstanceState: Bundle?) {
+        languageModeState.value = LanguageStore.getLanguageMode(this)
+        AppLanguageManager.apply(languageModeState.value)
+
         super.onCreate(savedInstanceState)
 
         requestPostNotificationPermissionIfNeeded()
 
         refreshStates()
+
+        themeModeState.value = ThemeStore.getThemeMode(this)
 
         // Keep the latest Mac discovery result available for the UI.
         macDiscoveryManager = MacDiscoveryManager(this) { result ->
@@ -116,7 +142,9 @@ class MainActivity : ComponentActivity() {
         )
 
         setContent {
-            NotifyBridgeTheme {
+            NotifyBridgeTheme(
+                themeMode = themeModeState.value
+            ) {
                 BackHandler(enabled = currentScreenState.value != AppScreen.Home) {
                     currentScreenState.value = AppScreen.Home
                 }
@@ -221,6 +249,19 @@ class MainActivity : ComponentActivity() {
                             },
                             onOpenUrl = { url ->
                                 openUrl(url)
+                            },
+                            currentThemeMode = themeModeState.value,
+                            onThemeModeChanged = { mode ->
+                                ThemeStore.setThemeMode(this, mode)
+                                themeModeState.value = mode
+                            },
+                            currentLanguageMode = languageModeState.value,
+                            onLanguageModeChanged = { mode ->
+                                LanguageStore.setLanguageMode(this, mode)
+                                languageModeState.value = mode
+                            },
+                            onRestartApp = {
+                                recreate()
                             }
                         )
                     }
@@ -358,7 +399,8 @@ class MainActivity : ComponentActivity() {
                 context = this,
                 host = payload.host,
                 port = payload.port,
-                code = payload.code
+                code = payload.code,
+                fingerprint = payload.fingerprint
             ) { result ->
                 runOnUiThread {
                     result.onSuccess { response ->
@@ -370,18 +412,14 @@ class MainActivity : ComponentActivity() {
                                 this,
                                 response.name.ifBlank { payload.name ?: response.host }
                             )
+                            MacConnectionStore.setMacCertFingerprint(this, payload.fingerprint)
 
                             BridgeStateStore.setBridgeEnabled(this, true)
                             bridgeEnabledState.value = true
                             requestPostNotificationPermissionIfNeeded()
                             BridgeServiceController.start(this)
                             checkMacHealth()
-
-                            NotificationSender.sendTest(this) { sendResult ->
-                                runOnUiThread {
-                                    sendResultState.value = sendResult
-                                }
-                            }
+                            sendResultState.value = SendResult.Success
                         } else {
                             sendResultState.value = SendResult.Error(
                                 getString(R.string.qr_pairing_error_invalid_response)
@@ -419,12 +457,15 @@ class MainActivity : ComponentActivity() {
         val code = uri.getQueryParameter("code")
             ?: error(getString(R.string.qr_pairing_error_missing_code))
         val name = uri.getQueryParameter("name")
+        val fingerprint = uri.getQueryParameter("fingerprint")
+            ?: error(getString(R.string.qr_pairing_error_missing_fingerprint))
 
         return PairingPayload(
             host = host,
             port = port,
             code = code,
-            name = name
+            name = name,
+            fingerprint = fingerprint
         )
     }
 
@@ -551,6 +592,7 @@ class MainActivity : ComponentActivity() {
         MacConnectionStore.setMacPort(this, "8787")
         MacConnectionStore.setPairingToken(this, "")
         MacConnectionStore.setMacName(this, "")
+        MacConnectionStore.setMacCertFingerprint(this, "")
 
         BridgeStateStore.setBridgeEnabled(this, false)
         bridgeEnabledState.value = false
