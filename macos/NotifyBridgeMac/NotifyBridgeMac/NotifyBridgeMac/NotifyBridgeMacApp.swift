@@ -7,6 +7,7 @@
 
 import SwiftUI
 import AppKit
+import UserNotifications
 
 /// Entry point of the macOS menu bar application.
 @main
@@ -15,6 +16,8 @@ struct NotifyBridgeMacApp: App {
     @StateObject private var server: LocalNotificationServer
 
     init() {
+        UNUserNotificationCenter.current().delegate = NotificationActionHandler.shared
+        
         _ = TLSIdentityManager.shared
         
         let localServer = LocalNotificationServer()

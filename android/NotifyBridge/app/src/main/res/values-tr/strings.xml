@@ -151,7 +151,7 @@
     <string name="settings_language_title">Uygulama Dili</string>
     <string name="settings_language_description">Uygulama arayüzünde kullanılacak dili seç.</string>
     <string name="settings_language_dialog_title">Dil seç</string>
-    <string name="settings_language_system_title">Sistem varsayılanı</string>
+    <string name="settings_language_system_title">Sistem</string>
     <string name="settings_language_system_description">Cihaz dil ayarını kullanır.</string>
     <string name="settings_language_turkish_title">Türkçe</string>
     <string name="settings_language_turkish_description">Uygulamayı Türkçe kullan.</string>

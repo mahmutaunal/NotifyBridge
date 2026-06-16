@@ -261,6 +261,16 @@ final class LocalNotificationServer: ObservableObject {
             sendOk(connection)
             return
         }
+        
+        if requestText.hasPrefix("GET /actions") {
+            guard validateHealthToken(requestText: requestText) else {
+                sendUnauthorized(connection)
+                return
+            }
+
+            sendPendingActions(connection)
+            return
+        }
 
         guard requestText.hasPrefix("POST /notify") else {
             sendNotFound(connection)
@@ -572,6 +582,18 @@ final class LocalNotificationServer: ObservableObject {
         }
 
         return token == pairingToken
+    }
+    
+    private func sendPendingActions(_ connection: NWConnection) {
+        let actions = NotificationActionQueue.shared.drain()
+
+        guard let data = try? JSONEncoder().encode(actions),
+              let json = String(data: data, encoding: .utf8) else {
+            sendBadRequest(connection)
+            return
+        }
+
+        sendJson(json, connection: connection)
     }
 
     /// Clears the paired device state and rotates the pairing token.

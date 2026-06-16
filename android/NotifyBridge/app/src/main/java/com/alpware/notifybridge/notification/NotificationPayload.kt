@@ -11,5 +11,10 @@ data class NotificationPayload(
     val postTime: Long,
     val contentHidden: Boolean = false,
     val appIconBase64: String? = null,
-    val deviceName: String? = null
+    val deviceName: String? = null,
+    val notificationKey: String? = null,
+    val canDismiss: Boolean = true,
+    val canOpenOnPhone: Boolean = true,
+    val canReply: Boolean = false,
+    val replyAction: NotificationReplyActionPayload? = null
 )

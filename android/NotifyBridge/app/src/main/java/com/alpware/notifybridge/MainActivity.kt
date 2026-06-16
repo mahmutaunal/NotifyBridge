@@ -5,6 +5,7 @@ import android.annotation.SuppressLint
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.content.pm.ApplicationInfo
 import android.content.pm.ResolveInfo
 import android.content.pm.PackageManager
 import android.graphics.Color
@@ -531,26 +532,31 @@ class MainActivity : ComponentActivity() {
     /**
      * Loads launchable installed apps and marks those selected for notification forwarding.
      */
+    @SuppressLint("QueryPermissionsNeeded")
     private fun loadInstalledApps(): List<InstalledAppItem> {
         val selectedPackages = AppFilterStore.getSelectedPackages(this)
 
-        val launcherIntent = Intent(Intent.ACTION_MAIN).apply {
-            addCategory(Intent.CATEGORY_LAUNCHER)
-        }
-
         return packageManager
-            .queryIntentActivities(launcherIntent, PackageManager.MATCH_DEFAULT_ONLY)
-            .distinctBy { it.activityInfo.packageName }
-            .map { resolveInfo: ResolveInfo ->
-                val packageName = resolveInfo.activityInfo.packageName
-
+            .getInstalledApplications(PackageManager.GET_META_DATA)
+            .asSequence()
+            .filter { appInfo ->
+                packageManager.getLaunchIntentForPackage(appInfo.packageName) != null
+            }
+            .filterNot { appInfo ->
+                appInfo.packageName == packageName
+            }
+            .map { appInfo: ApplicationInfo ->
                 InstalledAppItem(
-                    packageName = packageName,
-                    appName = resolveInfo.loadLabel(packageManager).toString(),
-                    isEnabled = packageName in selectedPackages
+                    packageName = appInfo.packageName,
+                    appName = packageManager
+                        .getApplicationLabel(appInfo)
+                        .toString(),
+                    isEnabled = appInfo.packageName in selectedPackages
                 )
             }
+            .distinctBy { it.packageName }
             .sortedBy { it.appName.lowercase() }
+            .toList()
     }
 
     private fun checkMacHealth() {

@@ -151,7 +151,7 @@
     <string name="settings_language_title">App Language</string>
     <string name="settings_language_description">Choose the language used by the app interface.</string>
     <string name="settings_language_dialog_title">Choose language</string>
-    <string name="settings_language_system_title">System default</string>
+    <string name="settings_language_system_title">System</string>
     <string name="settings_language_system_description">Uses your device language setting.</string>
     <string name="settings_language_turkish_title">Türkçe</string>
     <string name="settings_language_turkish_description">Use the app in Turkish.</string>

@@ -13,6 +13,8 @@ final class NotificationPresenter {
 
     /// Requests permission required to display local notifications on macOS.
     func requestPermission() {
+        registerNotificationCategories()
+        
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { granted, error in
             print("Notification permission granted:", granted)
 
@@ -42,6 +44,17 @@ final class NotificationPresenter {
         }
 
         content.sound = .default
+        
+        content.categoryIdentifier = "notifybridge_android_notification"
+
+        content.userInfo = [
+            "notificationKey": payload.notificationKey ?? "",
+            "packageName": payload.packageName,
+            "canDismiss": payload.canDismiss ?? false,
+            "canOpenOnPhone": payload.canOpenOnPhone ?? false,
+            "replyActionIndex": payload.replyAction?.actionIndex ?? -1,
+            "replyResultKey": payload.replyAction?.resultKey ?? ""
+        ]
 
         if let attachment = makeIconAttachment(from: payload.appIconBase64) {
             content.attachments = [attachment]
@@ -91,5 +104,40 @@ final class NotificationPresenter {
             print("Icon attachment error:", error.localizedDescription)
             return nil
         }
+    }
+    
+    private func registerNotificationCategories() {
+        let dismissAction = UNNotificationAction(
+            identifier: "dismiss_on_phone",
+            title: String(localized: "notification_action_dismiss"),
+            options: []
+        )
+
+        let openAction = UNNotificationAction(
+            identifier: "open_on_phone",
+            title: String(localized: "notification_action_open_on_phone"),
+            options: [.foreground]
+        )
+        
+        let replyAction = UNTextInputNotificationAction(
+            identifier: "reply_on_phone",
+            title: String(localized: "notification_action_reply"),
+            options: [],
+            textInputButtonTitle: String(localized: "notification_action_send"),
+            textInputPlaceholder: String(localized: "notification_action_reply_placeholder")
+        )
+
+        let category = UNNotificationCategory(
+            identifier: "notifybridge_android_notification",
+            actions: [
+                replyAction,
+                dismissAction,
+                openAction
+            ],
+            intentIdentifiers: [],
+            options: []
+        )
+
+        UNUserNotificationCenter.current().setNotificationCategories([category])
     }
 }

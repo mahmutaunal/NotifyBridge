@@ -17,4 +17,15 @@ struct NotificationPayload: Codable {
     let contentHidden: Bool?
     let appIconBase64: String?
     let deviceName: String?
+    let notificationKey: String?
+    let canDismiss: Bool?
+    let canOpenOnPhone: Bool?
+    let canReply: Bool?
+    let replyAction: NotificationReplyActionPayload?
+}
+
+struct NotificationReplyActionPayload: Codable {
+    let actionIndex: Int
+    let label: String?
+    let resultKey: String
 }
