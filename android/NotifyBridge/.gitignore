@@ -19,3 +19,6 @@ key.properties
 *.aab
 *.keystore
 *.jks
+xcuserdata/
+*.xcuserstate
+*.xcscmblueprint
