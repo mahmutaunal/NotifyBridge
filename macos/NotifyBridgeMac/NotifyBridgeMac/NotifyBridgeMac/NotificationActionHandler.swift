@@ -21,6 +21,8 @@ final class NotificationActionHandler: NSObject, UNUserNotificationCenterDelegat
         _ center: UNUserNotificationCenter,
         didReceive response: UNNotificationResponse
     ) async {
+        print("Received notification action:", response.actionIdentifier)
+        
         let userInfo = response.notification.request.content.userInfo
 
         let notificationKey = userInfo["notificationKey"] as? String
@@ -36,7 +38,7 @@ final class NotificationActionHandler: NSObject, UNUserNotificationCenterDelegat
                     notificationKey: notificationKey,
                     packageName: packageName,
                     replyText: nil,
-                    createdAt: Date()
+                    createdAt: ISO8601DateFormatter().string(from: Date())
                 )
             )
 
@@ -49,7 +51,7 @@ final class NotificationActionHandler: NSObject, UNUserNotificationCenterDelegat
                     notificationKey: notificationKey,
                     packageName: packageName,
                     replyText: nil,
-                    createdAt: Date()
+                    createdAt: ISO8601DateFormatter().string(from: Date())
                 )
             )
             
@@ -68,7 +70,7 @@ final class NotificationActionHandler: NSObject, UNUserNotificationCenterDelegat
                     notificationKey: notificationKey,
                     packageName: packageName,
                     replyText: textResponse.userText,
-                    createdAt: Date()
+                    createdAt: ISO8601DateFormatter().string(from: Date())
                 )
             )
 

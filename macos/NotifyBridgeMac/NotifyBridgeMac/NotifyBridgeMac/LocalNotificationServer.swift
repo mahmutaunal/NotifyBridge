@@ -587,11 +587,16 @@ final class LocalNotificationServer: ObservableObject {
     private func sendPendingActions(_ connection: NWConnection) {
         let actions = NotificationActionQueue.shared.drain()
 
-        guard let data = try? JSONEncoder().encode(actions),
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+
+        guard let data = try? encoder.encode(actions),
               let json = String(data: data, encoding: .utf8) else {
             sendBadRequest(connection)
             return
         }
+
+        print("Sending pending actions:", actions.count)
 
         sendJson(json, connection: connection)
     }

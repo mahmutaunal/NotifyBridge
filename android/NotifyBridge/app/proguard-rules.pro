@@ -85,3 +85,5 @@
 -keep class com.alpware.notifybridge.pairing.PairingRequest { *; }
 -keep class com.alpware.notifybridge.pairing.PairingResponse { *; }
 -keep class com.alpware.notifybridge.network.ConnectionHealthResult { *; }
+-keep class com.alpware.notifybridge.notification.NotificationReplyActionPayload { *; }
+-keep class com.alpware.notifybridge.network.NotificationActionCommand { *; }

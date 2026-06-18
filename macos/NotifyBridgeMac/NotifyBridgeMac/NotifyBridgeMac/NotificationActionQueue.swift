@@ -11,24 +11,26 @@ import Combine
 /// Stores notification actions until they are fetched by the paired Android device.
 final class NotificationActionQueue: ObservableObject {
 
-    /// Shared action queue instance.
     static let shared = NotificationActionQueue()
 
-    /// Pending notification actions waiting to be delivered.
+    private let queue = DispatchQueue(label: "com.alpware.notifybridge.notification-actions")
     private var commands: [NotificationActionCommand] = []
 
     private init() {}
 
-    /// Adds a notification action to the delivery queue.
     func enqueue(_ command: NotificationActionCommand) {
-        commands.append(command)
-        print("Queued notification action:", command)
+        queue.async {
+            self.commands.append(command)
+            print("Queued action:", command.type.rawValue, command.notificationKey ?? "nil")
+        }
     }
 
-    /// Returns all queued actions and clears the queue.
     func drain() -> [NotificationActionCommand] {
-        let pending = commands
-        commands.removeAll()
-        return pending
+        queue.sync {
+            let pending = commands
+            commands.removeAll()
+            print("Draining actions:", pending.count)
+            return pending
+        }
     }
 }

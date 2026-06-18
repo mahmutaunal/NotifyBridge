@@ -14,7 +14,7 @@ struct NotificationActionCommand: Codable, Identifiable {
     let notificationKey: String?
     let packageName: String?
     let replyText: String?
-    let createdAt: Date
+    let createdAt: String
 }
 
 /// Supported notification actions that can be executed on the Android device.
