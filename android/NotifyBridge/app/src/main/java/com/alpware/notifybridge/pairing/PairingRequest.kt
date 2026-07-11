@@ -11,5 +11,8 @@ data class PairingRequest(
     val code: String,
 
     @SerializedName("deviceName")
-    val deviceName: String
+    val deviceName: String,
+
+    @SerializedName("deviceId")
+    val deviceId: String
 )

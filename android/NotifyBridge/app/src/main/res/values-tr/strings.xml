@@ -174,4 +174,10 @@
     <string name="app_filter_send_all_title">Tüm uygulamaları gönder</string>
     <string name="app_filter_send_all_enabled_description">%1$d uygulamanın bildirimi gönderiliyor.</string>
     <string name="app_filter_send_all_disabled_description">Sadece aşağıda seçtiğin uygulamaların bildirimleri gönderilir.</string>
+    <string name="home_previous_device">Önceki cihaz</string>
+    <string name="home_next_device">Sonraki cihaz</string>
+    <string name="home_add_device_short">Cihaz ekle</string>
+    <string name="home_add_mac_title">Yeni bir Mac ekle</string>
+    <string name="home_add_mac_description">Mac uygulamasında gösterilen QR kodu tarayarak başka bir Mac ile güvenli şekilde eşleştirin.</string>
+    <string name="home_add_mac_button">Yeni Mac eşleştir</string>
 </resources>

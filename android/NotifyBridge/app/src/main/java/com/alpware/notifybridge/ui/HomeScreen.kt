@@ -1,6 +1,8 @@
 package com.alpware.notifybridge.ui
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -22,6 +24,9 @@ import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.DesktopMac
 import androidx.compose.material.icons.outlined.FilterList
 import androidx.compose.material.icons.outlined.Visibility
+import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.ArrowBackIosNew
+import androidx.compose.material.icons.outlined.ArrowForwardIos
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -43,11 +48,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.LaunchedEffect
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.ui.Alignment
@@ -61,6 +68,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.graphics.vector.ImageVector
 import com.alpware.notifybridge.R
 import com.alpware.notifybridge.network.SendResult
+import com.alpware.notifybridge.model.PairedMac
 import kotlin.time.Duration.Companion.milliseconds
 
 /**
@@ -77,6 +85,9 @@ fun HomeScreen(
     macPort: String,
     macName: String,
     pairingToken: String,
+    pairedMacs: List<PairedMac>,
+    selectedMacId: String?,
+    onSelectMac: (String) -> Unit,
     sendResult: SendResult?,
     isIgnoringBatteryOptimizations: Boolean,
     onBridgeEnabledChanged: (Boolean) -> Unit,
@@ -99,6 +110,13 @@ fun HomeScreen(
     var showAdvanced by remember { mutableStateOf(false) }
     var showTestResultDialog by remember { mutableStateOf(false) }
     var showNotificationAccessDisclosure by remember { mutableStateOf(false) }
+
+    LaunchedEffect(selectedMacId, macIp, macPort, pairingToken) {
+        ipInput = macIp
+        portInput = macPort
+        tokenInput = pairingToken
+        showAdvanced = false
+    }
 
     // A valid pairing requires both a Mac address and a shared pairing token.
     val isPaired = macIp.isNotBlank() && pairingToken.isNotBlank()
@@ -148,12 +166,12 @@ fun HomeScreen(
                     onOpenSettings = onOpenSettings
                 )
 
-                MainConnectionCard(
+                DeviceConnectionCarousel(
+                    pairedMacs = pairedMacs,
+                    selectedMacId = selectedMacId,
+                    isSelectedMacOnline = isMacOnline,
                     hasNotificationAccess = hasNotificationAccess,
-                    isPaired = isPaired,
-                    isConnected = isConnected,
                     bridgeEnabled = bridgeEnabled,
-                    isMacOnline = isMacOnline,
                     macIp = macIp,
                     macPort = macPort,
                     macName = pairedMacName,
@@ -161,23 +179,18 @@ fun HomeScreen(
                     ipInput = ipInput,
                     portInput = portInput,
                     tokenInput = tokenInput,
+                    onSelectMac = onSelectMac,
                     onBridgeEnabledChanged = onBridgeEnabledChanged,
                     onToggleAdvanced = { showAdvanced = !showAdvanced },
                     onIpChange = { ipInput = it },
                     onPortChange = { portInput = it },
                     onTokenChange = { tokenInput = it },
                     onSaveAdvanced = {
-                        onSaveMacConnection(
-                            ipInput.trim(),
-                            portInput.trim(),
-                            tokenInput.trim()
-                        )
+                        onSaveMacConnection(ipInput.trim(), portInput.trim(), tokenInput.trim())
                     },
                     onScanPairingQr = onScanPairingQr,
                     onSendTestNotification = onSendTestNotification,
-                    onOpenNotificationSettings = {
-                        showNotificationAccessDisclosure = true
-                    },
+                    onOpenNotificationSettings = { showNotificationAccessDisclosure = true },
                     onResetPairing = onResetPairing
                 )
 
@@ -220,6 +233,145 @@ fun HomeScreen(
                         onOpenNotificationSettings()
                     }
                 )
+            }
+        }
+    }
+}
+
+@Composable
+private fun DeviceConnectionCarousel(
+    pairedMacs: List<PairedMac>,
+    selectedMacId: String?,
+    isSelectedMacOnline: Boolean,
+    hasNotificationAccess: Boolean,
+    bridgeEnabled: Boolean,
+    macIp: String,
+    macPort: String,
+    macName: String,
+    showAdvanced: Boolean,
+    ipInput: String,
+    portInput: String,
+    tokenInput: String,
+    onSelectMac: (String) -> Unit,
+    onBridgeEnabledChanged: (Boolean) -> Unit,
+    onToggleAdvanced: () -> Unit,
+    onIpChange: (String) -> Unit,
+    onPortChange: (String) -> Unit,
+    onTokenChange: (String) -> Unit,
+    onSaveAdvanced: () -> Unit,
+    onScanPairingQr: () -> Unit,
+    onSendTestNotification: () -> Unit,
+    onOpenNotificationSettings: () -> Unit,
+    onResetPairing: () -> Unit
+) {
+    val pageCount = pairedMacs.size + 1
+    val selectedIndex = pairedMacs.indexOfFirst { it.id == selectedMacId }.coerceAtLeast(0)
+    val pagerState = rememberPagerState(initialPage = selectedIndex, pageCount = { pageCount })
+    val scope = rememberCoroutineScope()
+
+    LaunchedEffect(selectedMacId, pairedMacs.size) {
+        val target = pairedMacs.indexOfFirst { it.id == selectedMacId }
+        if (target >= 0 && target != pagerState.currentPage) pagerState.scrollToPage(target)
+    }
+    LaunchedEffect(pagerState.currentPage, pairedMacs) {
+        pairedMacs.getOrNull(pagerState.currentPage)?.let { device ->
+            if (device.id != selectedMacId) onSelectMac(device.id)
+        }
+    }
+
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        HorizontalPager(state = pagerState, pageSpacing = 12.dp) { page ->
+            if (page < pairedMacs.size) {
+                val device = pairedMacs[page]
+                val selected = device.id == selectedMacId
+                MainConnectionCard(
+                    hasNotificationAccess = hasNotificationAccess,
+                    isPaired = device.isValid,
+                    isConnected = selected && isSelectedMacOnline,
+                    bridgeEnabled = bridgeEnabled && device.enabled,
+                    isMacOnline = selected && isSelectedMacOnline,
+                    macIp = device.host,
+                    macPort = device.port.toString(),
+                    macName = device.displayName,
+                    showAdvanced = selected && showAdvanced,
+                    ipInput = if (selected) ipInput else device.host,
+                    portInput = if (selected) portInput else device.port.toString(),
+                    tokenInput = if (selected) tokenInput else device.secret,
+                    onBridgeEnabledChanged = onBridgeEnabledChanged,
+                    onToggleAdvanced = onToggleAdvanced,
+                    onIpChange = onIpChange,
+                    onPortChange = onPortChange,
+                    onTokenChange = onTokenChange,
+                    onSaveAdvanced = onSaveAdvanced,
+                    onScanPairingQr = onScanPairingQr,
+                    onSendTestNotification = onSendTestNotification,
+                    onOpenNotificationSettings = onOpenNotificationSettings,
+                    onResetPairing = onResetPairing
+                )
+            } else {
+                AddMacCard(onAddMac = onScanPairingQr)
+            }
+        }
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center
+        ) {
+            IconButton(
+                enabled = pagerState.currentPage > 0,
+                onClick = { scope.launch { pagerState.animateScrollToPage(pagerState.currentPage - 1) } }
+            ) {
+                Icon(Icons.Outlined.ArrowBackIosNew, contentDescription = stringResource(R.string.home_previous_device))
+            }
+            Text(
+                text = if (pagerState.currentPage < pairedMacs.size) {
+                    "${pagerState.currentPage + 1} / ${pairedMacs.size}"
+                } else {
+                    stringResource(R.string.home_add_device_short)
+                },
+                style = MaterialTheme.typography.labelLarge,
+                modifier = Modifier.padding(horizontal = 18.dp)
+            )
+            IconButton(
+                enabled = pagerState.currentPage < pageCount - 1,
+                onClick = { scope.launch { pagerState.animateScrollToPage(pagerState.currentPage + 1) } }
+            ) {
+                Icon(Icons.Outlined.ArrowForwardIos, contentDescription = stringResource(R.string.home_next_device))
+            }
+        }
+    }
+}
+
+@Composable
+private fun AddMacCard(onAddMac: () -> Unit) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(28.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 28.dp, vertical = 36.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Box(
+                modifier = Modifier.size(72.dp).clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(Icons.Outlined.Add, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(36.dp))
+            }
+            Text(stringResource(R.string.home_add_mac_title), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+            Text(
+                stringResource(R.string.home_add_mac_description),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Button(onClick = onAddMac, modifier = Modifier.fillMaxWidth()) {
+                Icon(Icons.Outlined.Add, contentDescription = null)
+                Spacer(Modifier.width(8.dp))
+                Text(stringResource(R.string.home_add_mac_button))
             }
         }
     }

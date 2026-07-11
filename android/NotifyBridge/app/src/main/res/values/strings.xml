@@ -174,4 +174,10 @@
     <string name="app_filter_send_all_title">Forward all apps</string>
     <string name="app_filter_send_all_enabled_description">Notifications from %1$d apps are being forwarded.</string>
     <string name="app_filter_send_all_disabled_description">Only the apps selected below will be forwarded.</string>
+    <string name="home_previous_device">Previous device</string>
+    <string name="home_next_device">Next device</string>
+    <string name="home_add_device_short">Add device</string>
+    <string name="home_add_mac_title">Add a new Mac</string>
+    <string name="home_add_mac_description">Pair another Mac securely by scanning the QR code shown in the NotifyBridge Mac app.</string>
+    <string name="home_add_mac_button">Pair new Mac</string>
 </resources>

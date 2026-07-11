@@ -24,6 +24,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.core.content.ContextCompat
 import com.alpware.notifybridge.core.BridgeStateStore
 import com.alpware.notifybridge.core.MacConnectionStore
+import com.alpware.notifybridge.core.PairedMacStore
+import com.alpware.notifybridge.model.PairedMac
+import java.util.UUID
 import com.alpware.notifybridge.network.DiscoveryResult
 import com.alpware.notifybridge.network.MacDiscoveryManager
 import com.alpware.notifybridge.network.NotificationSender
@@ -76,6 +79,8 @@ class MainActivity : ComponentActivity() {
     private val isRefreshingConnectionState = mutableStateOf(false)
     private val themeModeState = mutableStateOf(AppThemeMode.SYSTEM)
     private val languageModeState = mutableStateOf(AppLanguageMode.SYSTEM)
+    private val pairedMacsState = mutableStateOf<List<PairedMac>>(emptyList())
+    private val selectedMacState = mutableStateOf<PairedMac?>(null)
 
     // Refreshes permission-dependent state after the notification permission dialog closes.
     private val notificationPermissionLauncher =
@@ -119,6 +124,7 @@ class MainActivity : ComponentActivity() {
         requestPostNotificationPermissionIfNeeded()
 
         refreshStates()
+        refreshPairedMacs()
 
         themeModeState.value = ThemeStore.getThemeMode(this)
 
@@ -158,10 +164,13 @@ class MainActivity : ComponentActivity() {
                             bridgeEnabled = bridgeEnabledState.value,
                             isMacOnline = macOnlineState.value,
                             isRefreshingConnection = isRefreshingConnectionState.value,
-                            macIp = MacConnectionStore.getMacIp(this),
-                            macPort = MacConnectionStore.getMacPort(this),
-                            macName = MacConnectionStore.getMacName(this),
-                            pairingToken = MacConnectionStore.getPairingToken(this),
+                            macIp = selectedMacState.value?.host.orEmpty(),
+                            macPort = selectedMacState.value?.port?.toString() ?: "8787",
+                            macName = selectedMacState.value?.name.orEmpty(),
+                            pairingToken = selectedMacState.value?.secret.orEmpty(),
+                            pairedMacs = pairedMacsState.value,
+                            selectedMacId = selectedMacState.value?.id,
+                            onSelectMac = { id -> PairedMacStore.select(this, id); refreshPairedMacs(); checkMacHealth() },
                             sendResult = sendResultState.value,
                             isIgnoringBatteryOptimizations = batteryOptimizationIgnoredState.value,
                             onRequestBatteryOptimizationIgnore = {
@@ -189,6 +198,10 @@ class MainActivity : ComponentActivity() {
                                 MacConnectionStore.setMacIp(this, ip)
                                 MacConnectionStore.setMacPort(this, port)
                                 MacConnectionStore.setPairingToken(this, token)
+                                selectedMacState.value?.let { current ->
+                                    PairedMacStore.upsert(this, current.copy(host = ip, port = port.toIntOrNull() ?: 8787, secret = token))
+                                    refreshPairedMacs()
+                                }
                             },
                             onSendTestNotification = {
                                 NotificationSender.sendTest(this) { result ->
@@ -414,6 +427,18 @@ class MainActivity : ComponentActivity() {
                                 response.name.ifBlank { payload.name ?: response.host }
                             )
                             MacConnectionStore.setMacCertFingerprint(this, payload.fingerprint)
+                            PairedMacStore.upsert(
+                                this,
+                                PairedMac(
+                                    id = UUID.randomUUID().toString(),
+                                    name = response.name.ifBlank { payload.name ?: response.host },
+                                    host = response.host,
+                                    port = response.port,
+                                    secret = response.secret,
+                                    fingerprint = payload.fingerprint
+                                )
+                            )
+                            refreshPairedMacs()
 
                             BridgeStateStore.setBridgeEnabled(this, true)
                             bridgeEnabledState.value = true
@@ -559,9 +584,14 @@ class MainActivity : ComponentActivity() {
             .toList()
     }
 
+
+    private fun refreshPairedMacs() {
+        pairedMacsState.value = PairedMacStore.getAll(this)
+        selectedMacState.value = PairedMacStore.getSelected(this)
+    }
+
     private fun checkMacHealth() {
-        val hasPairing = MacConnectionStore.getMacIp(this).isNotBlank() &&
-            MacConnectionStore.getPairingToken(this).isNotBlank()
+        val hasPairing = PairedMacStore.getSelected(this)?.isValid == true
 
         if (!hasPairing) {
             macOnlineState.value = false
@@ -594,20 +624,19 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun clearPairingLocally() {
-        MacConnectionStore.setMacIp(this, "")
-        MacConnectionStore.setMacPort(this, "8787")
-        MacConnectionStore.setPairingToken(this, "")
-        MacConnectionStore.setMacName(this, "")
-        MacConnectionStore.setMacCertFingerprint(this, "")
+        selectedMacState.value?.let { PairedMacStore.remove(this, it.id) }
+        refreshPairedMacs()
 
-        BridgeStateStore.setBridgeEnabled(this, false)
-        bridgeEnabledState.value = false
-        BridgeServiceController.stop(this)
+        val hasRemainingDevices = pairedMacsState.value.isNotEmpty()
+        BridgeStateStore.setBridgeEnabled(this, hasRemainingDevices)
+        bridgeEnabledState.value = hasRemainingDevices
+        if (hasRemainingDevices) BridgeServiceController.start(this) else BridgeServiceController.stop(this)
 
         macOnlineState.value = false
         isRefreshingConnectionState.value = false
         sendResultState.value = null
         discoveryResultState.value = null
+        if (hasRemainingDevices) checkMacHealth()
     }
 
     /**

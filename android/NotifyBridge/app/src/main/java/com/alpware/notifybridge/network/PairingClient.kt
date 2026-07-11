@@ -2,6 +2,7 @@ package com.alpware.notifybridge.network
 
 import android.content.Context
 import com.alpware.notifybridge.core.DeviceNameResolver
+import com.alpware.notifybridge.core.AndroidDeviceIdentity
 import com.alpware.notifybridge.pairing.PairingRequest
 import com.alpware.notifybridge.pairing.PairingResponse
 import com.google.gson.Gson
@@ -34,7 +35,8 @@ object PairingClient {
                 // Include a readable Android device name for the Mac pairing UI.
                 val request = PairingRequest(
                     code = code,
-                    deviceName = DeviceNameResolver.get(context)
+                    deviceName = DeviceNameResolver.get(context),
+                    deviceId = AndroidDeviceIdentity.get(context)
                 )
 
                 // Serialize the pairing request into JSON before transmission.

@@ -218,76 +218,177 @@ private struct ControlSection: View {
 private struct PairedDeviceSection: View {
 
     @ObservedObject var server: LocalNotificationServer
+    @ObservedObject private var pairedDevices = PairedAndroidDeviceStore.shared
     @State private var showQr = false
 
     var body: some View {
         CardContainer {
             VStack(alignment: .leading, spacing: 16) {
-                Text(String(localized: "Eşleşmiş Cihaz"))
-                    .font(.headline)
-                    .foregroundStyle(.secondary)
-
-                HStack(spacing: 14) {
-                    CircleIcon(systemImage: "iphone")
-
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(server.lastClientName.isEmpty ? server.lastClientAddress : server.lastClientName)
-                            .font(.system(size: 24, weight: .bold))
-                            .lineLimit(1)
-
-                        Text(server.isClientOnline
-                             ? String(localized: "device_online_now")
-                             : lastActiveText)
-                            .font(.system(size: 13))
-                            .foregroundStyle(server.isClientOnline ? .green : .secondary)
+                HStack {
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(String(localized: "Eşleşmiş Cihazlar"))
+                            .font(.headline)
+                        Text(String(localized: "Android cihazlarınızı ayrı ayrı yönetin."))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
                     }
-
                     Spacer()
-
-                    Button(String(localized: "Yeniden Eşleştir")) {
-                        showQr.toggle()
-                    }
-
-                    Menu {
-                        Button(String(localized: "Eşleştirmeyi Sıfırla"), role: .destructive) {
-                            server.resetPairing()
-                        }
-                    } label: {
-                        Image(systemName: "ellipsis")
-                            .frame(width: 34, height: 28)
-                    }
+                    Text("\(pairedDevices.devices.count)")
+                        .font(.caption.weight(.semibold))
+                        .padding(.horizontal, 9)
+                        .padding(.vertical, 4)
+                        .background(Color.secondary.opacity(0.12))
+                        .clipShape(Capsule())
                 }
 
-                if showQr && !server.isClientOnline {
-                    Divider()
+                if pairedDevices.devices.isEmpty {
+                    Text(String(localized: "Henüz eşleşmiş Android cihaz yok."))
+                        .font(.system(size: 13))
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.vertical, 8)
+                } else {
+                    GeometryReader { geometry in
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            LazyHStack(spacing: 12) {
+                                ForEach(pairedDevices.devices) { device in
+                                    PairedAndroidDeviceCard(
+                                        device: device,
+                                        onEnabledChanged: { enabled in
+                                            pairedDevices.setEnabled(
+                                                id: device.id,
+                                                enabled: enabled
+                                            )
+                                        },
+                                        onRemove: {
+                                            pairedDevices.remove(id: device.id)
+                                        }
+                                    )
+                                    .frame(width: geometry.size.width)
+                                }
+                            }
+                            .scrollTargetLayout()
+                        }
+                        .scrollTargetBehavior(.viewAligned)
+                    }
+                    .frame(height: 184)
+                }
 
+                Button {
+                    showQr.toggle()
+                } label: {
+                    Label(
+                        showQr
+                            ? String(localized: "Eşleştirme Kodunu Gizle")
+                            : String(localized: "Yeni Cihaz Ekle"),
+                        systemImage: showQr ? "qrcode" : "plus"
+                    )
+                    .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.large)
+
+                if showQr {
+                    Divider()
                     PairingQRCodeSection(server: server)
                 }
             }
         }
-        .onChange(of: server.lastClientHeartbeatDate) { _, _ in
-            if server.isClientOnline {
-                showQr = false
-            }
-        }
-        .onChange(of: server.lastClientName) { _, _ in
-            if server.isClientOnline {
-                showQr = false
-            }
-        }
-        .onChange(of: server.pairingCompleted) { _, isPaired in
-            if !isPaired {
-                showQr = false
-            }
+        .onChange(of: pairedDevices.devices.count) { oldValue, newValue in
+            if newValue > oldValue { showQr = false }
         }
     }
+}
 
-    private var lastActiveText: String {
-        if let lastConnectionText = server.lastConnectionText {
-            return String(localized: "Son aktif: \(lastConnectionText)")
+private struct PairedAndroidDeviceCard: View {
+
+    let device: PairedAndroidDevice
+    let onEnabledChanged: (Bool) -> Void
+    let onRemove: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(alignment: .top, spacing: 12) {
+                ZStack {
+                    Circle()
+                        .fill(statusColor.opacity(0.14))
+                        .frame(width: 46, height: 46)
+                    Image(systemName: device.isOnline ? "iphone.radiowaves.left.and.right" : "iphone.slash")
+                        .font(.system(size: 20, weight: .medium))
+                        .foregroundStyle(statusColor)
+                }
+
+                VStack(alignment: .leading, spacing: 5) {
+                    Text(device.name.isEmpty ? String(localized: "Android Cihaz") : device.name)
+                        .font(.system(size: 17, weight: .bold))
+                        .lineLimit(1)
+                    StatusBadge(
+                        text: device.isOnline
+                            ? String(localized: "connection_status_connected")
+                            : String(localized: "connection_status_offline"),
+                        color: statusColor
+                    )
+                }
+                Spacer(minLength: 4)
+
+                Menu {
+                    Button(String(localized: "Cihazı Kaldır"), role: .destructive, action: onRemove)
+                } label: {
+                    Image(systemName: "ellipsis")
+                        .frame(width: 28, height: 28)
+                }
+                .menuStyle(.borderlessButton)
+            }
+
+            VStack(alignment: .leading, spacing: 6) {
+                Label(
+                    device.lastAddress.isEmpty
+                        ? String(localized: "Yerel ağ adresi bekleniyor")
+                        : device.lastAddress,
+                    systemImage: "network"
+                )
+                Label(lastSeenText, systemImage: "clock")
+            }
+            .font(.caption)
+            .foregroundStyle(.secondary)
+
+            Divider()
+
+            Toggle(isOn: Binding(
+                get: { device.isEnabled },
+                set: onEnabledChanged
+            )) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(String(localized: "Bildirimleri Kabul Et"))
+                        .font(.system(size: 13, weight: .semibold))
+                    Text(device.isEnabled
+                         ? String(localized: "Bu cihazdan gelen bildirimler etkin.")
+                         : String(localized: "Bu cihaz geçici olarak devre dışı."))
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .toggleStyle(.switch)
         }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.secondary.opacity(0.07))
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .stroke(statusColor.opacity(device.isOnline ? 0.28 : 0.10), lineWidth: 1)
+        )
+    }
 
-        return String(localized: "Son aktif: Bilinmiyor")
+    private var statusColor: Color {
+        device.isOnline && device.isEnabled ? .green : .orange
+    }
+
+    private var lastSeenText: String {
+        guard let date = device.lastSeenAt else {
+            return String(localized: "Son aktif: Bilinmiyor")
+        }
+        return String(localized: "Son aktif: \(date.formatted(date: .omitted, time: .shortened))")
     }
 }
 

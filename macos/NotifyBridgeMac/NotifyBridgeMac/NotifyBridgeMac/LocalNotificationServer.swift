@@ -77,6 +77,7 @@ final class LocalNotificationServer: ObservableObject {
     private let port: NWEndpoint.Port = 8787
     private var listener: NWListener?
     private let presenter = NotificationPresenter()
+    let pairedDevices = PairedAndroidDeviceStore.shared
     private let bonjourPublisher = BonjourPublisher()
     
     init() {
@@ -246,7 +247,7 @@ final class LocalNotificationServer: ObservableObject {
                 return
             }
 
-            markClientHeartbeat(connection: connection)
+            markClientHeartbeat(connection: connection, requestText: requestText)
             sendOk(connection)
             return
         }
@@ -257,7 +258,11 @@ final class LocalNotificationServer: ObservableObject {
                 return
             }
 
-            resetPairing()
+            if let deviceId = headerValue("X-NotifyBridge-Device-Id", from: requestText) {
+                pairedDevices.remove(id: deviceId)
+            } else {
+                resetPairing()
+            }
             sendOk(connection)
             return
         }
@@ -535,6 +540,7 @@ final class LocalNotificationServer: ObservableObject {
             self.pairingCompleted = true
             self.lastClientName = request.deviceName ?? String(localized: "unknown_client_device")
             self.lastConnectionDate = Date()
+            self.pairedDevices.register(id: request.deviceId, name: self.lastClientName)
 
             UserDefaults.standard.set(true, forKey: "pairingCompleted")
             UserDefaults.standard.set(self.lastClientName, forKey: "lastClientName")
@@ -557,7 +563,7 @@ final class LocalNotificationServer: ObservableObject {
         }
     }
     
-    private func markClientHeartbeat(connection: NWConnection) {
+    private func markClientHeartbeat(connection: NWConnection, requestText: String? = nil) {
         let address: String
 
         switch connection.endpoint {
@@ -567,12 +573,14 @@ final class LocalNotificationServer: ObservableObject {
             address = String(localized: "unknown_client_device")
         }
 
+        let deviceId = requestText.flatMap { self.headerValue("X-NotifyBridge-Device-Id", from: $0) }
         DispatchQueue.main.async {
             self.lastClientAddress = address
             self.lastClientHeartbeatDate = Date()
 
             UserDefaults.standard.set(address, forKey: "lastClientAddress")
             UserDefaults.standard.set(Date(), forKey: "lastClientHeartbeatDate")
+            if let deviceId { self.pairedDevices.heartbeat(id: deviceId, address: address) }
         }
     }
     
@@ -624,4 +632,5 @@ final class LocalNotificationServer: ObservableObject {
 struct PairingRequest: Codable {
     let code: String
     let deviceName: String?
+    let deviceId: String
 }

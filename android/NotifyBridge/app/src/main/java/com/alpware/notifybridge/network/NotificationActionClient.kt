@@ -1,7 +1,8 @@
 package com.alpware.notifybridge.network
 
 import android.content.Context
-import com.alpware.notifybridge.core.MacConnectionStore
+import com.alpware.notifybridge.core.PairedMacStore
+import com.alpware.notifybridge.core.AndroidDeviceIdentity
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 
@@ -20,7 +21,7 @@ object NotificationActionClient {
         Thread {
             runCatching {
                 // Use the pairing token to authenticate the action request.
-                val token = MacConnectionStore.getPairingToken(context)
+                val token = PairedMacStore.getSelected(context)?.secret.orEmpty()
 
                 if (token.isBlank()) {
                     return@runCatching emptyList<NotificationActionCommand>()
@@ -36,6 +37,7 @@ object NotificationActionClient {
 
                 connection.requestMethod = "GET"
                 connection.setRequestProperty("X-NotifyBridge-Token", token)
+                connection.setRequestProperty("X-NotifyBridge-Device-Id", AndroidDeviceIdentity.get(context))
 
                 // Ensure the server accepted and processed the request.
                 val responseCode = connection.responseCode

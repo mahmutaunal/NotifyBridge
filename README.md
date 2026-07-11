@@ -50,6 +50,16 @@ Built with a security-first architecture, NotifyBridge uses encrypted communicat
 - Launch at Login support on macOS.
 - Connection health monitoring.
 
+### Multiple Device Support
+
+- Pair one Android device with multiple Mac devices.
+- Pair one Mac with multiple Android devices.
+- Manage every paired device independently.
+- View individual connection states for each device.
+- Enable or disable notification forwarding per device.
+- Swipe between paired devices on Android.
+- Manage paired Android devices from the macOS menu bar app.
+
 ---
 
 ## Screenshots
@@ -205,10 +215,7 @@ NotifyBridge/
 ## Roadmap
 
 ### Planned
-- Multiple device support.
 - Rich notification previews.
-- File sharing.
-- Clipboard synchronization.
 - Notification history.
 - Improved notification grouping.
 
@@ -245,3 +252,14 @@ https://alpwarestudio.com
 <p align="center">
 Made with Kotlin, SwiftUI and a strong focus on privacy.
 </p>
+## Multi-device support
+
+NotifyBridge supports many-to-many pairing:
+
+- One Android device can pair with and forward notifications to multiple Macs.
+- One Mac can register and manage multiple Android devices.
+- Android stores every Mac as an independent encrypted profile and migrates legacy single-device pairings automatically.
+- Notifications are delivered independently to every enabled Mac, so one offline Mac does not block the others.
+- The Android home screen uses horizontal swipe navigation between paired Macs.
+- The macOS app shows paired Android devices with online state, enable/disable controls, and removal.
+- TLS certificate pinning and per-profile secrets remain isolated for every paired Mac.

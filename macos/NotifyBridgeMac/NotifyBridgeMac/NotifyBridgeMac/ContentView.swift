@@ -11,6 +11,7 @@ import SwiftUI
 struct ContentView: View {
 
     @ObservedObject var server: LocalNotificationServer
+    @ObservedObject private var pairedDevices = PairedAndroidDeviceStore.shared
 
     var body: some View {
         ScrollView {
@@ -52,6 +53,43 @@ struct ContentView: View {
 
                 Divider()
 
+                Text("Paired Android Devices")
+                    .font(.headline)
+
+                if pairedDevices.devices.isEmpty {
+                    Text("No Android device has been paired yet.")
+                        .foregroundStyle(.secondary)
+                } else {
+                    ForEach(pairedDevices.devices) { device in
+                        HStack(spacing: 12) {
+                            Image(systemName: device.isOnline ? "iphone.radiowaves.left.and.right" : "iphone.slash")
+                                .foregroundStyle(device.isOnline ? .green : .secondary)
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text(device.name).fontWeight(.semibold)
+                                Text(device.lastAddress.isEmpty ? "Paired" : device.lastAddress)
+                                    .font(.caption).foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            Toggle("", isOn: Binding(
+                                get: { device.isEnabled },
+                                set: { pairedDevices.setEnabled(id: device.id, enabled: $0) }
+                            ))
+                            .labelsHidden()
+                            Button(role: .destructive) {
+                                pairedDevices.remove(id: device.id)
+                            } label: {
+                                Image(systemName: "trash")
+                            }
+                            .buttonStyle(.borderless)
+                        }
+                        .padding(10)
+                        .background(Color.gray.opacity(0.08))
+                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                    }
+                }
+
+                Divider()
+
                 Text("qr_pairing_title")
                     .font(.headline)
 
@@ -86,6 +124,6 @@ struct ContentView: View {
             }
             .padding(24)
         }
-        .frame(width: 460, height: 620)
+        .frame(width: 500, height: 760)
     }
 }

@@ -1,7 +1,8 @@
 package com.alpware.notifybridge.network
 
 import android.content.Context
-import com.alpware.notifybridge.core.MacConnectionStore
+import com.alpware.notifybridge.core.PairedMacStore
+import com.alpware.notifybridge.core.AndroidDeviceIdentity
 
 /**
  * Performs lightweight connectivity checks against the paired Mac device.
@@ -17,8 +18,9 @@ object ConnectionHealthClient {
     ) {
         Thread {
             val result = runCatching {
-                val macIp = MacConnectionStore.getMacIp(context)
-                val token = MacConnectionStore.getPairingToken(context)
+                val selected = PairedMacStore.getSelected(context)
+                val macIp = selected?.host.orEmpty()
+                val token = selected?.secret.orEmpty()
 
                 if (macIp.isBlank() || token.isBlank()) {
                     return@runCatching ConnectionHealthResult.PairingInvalid
@@ -35,6 +37,7 @@ object ConnectionHealthClient {
                 connection.connectTimeout = 1500
                 connection.readTimeout = 1500
                 connection.setRequestProperty("X-NotifyBridge-Token", token)
+                connection.setRequestProperty("X-NotifyBridge-Device-Id", AndroidDeviceIdentity.get(context))
 
                 when (connection.responseCode) {
                     200 -> ConnectionHealthResult.Online
