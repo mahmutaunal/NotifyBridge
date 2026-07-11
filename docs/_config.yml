@@ -1,0 +1,15 @@
+title: NotifyBridge
+description: Secure Android notification forwarding for macOS
+theme: jekyll-theme-cayman
+
+url: "https://mahmutaunal.github.io"
+baseurl: "/NotifyBridge"
+
+repository: mahmutaunal/NotifyBridge
+
+github:
+  is_project_page: true
+  repository_url: "https://github.com/mahmutaunal/NotifyBridge"
+
+plugins:
+  - jekyll-seo-tag
