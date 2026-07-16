@@ -37,7 +37,12 @@ fun NotificationHistoryScreen(repository: NotificationHistoryRepository, onBack:
                         "Tümünü temizle"
                     )
                 }
-            })
+            },
+            colors = TopAppBarDefaults.topAppBarColors(
+                containerColor = MaterialTheme.colorScheme.background,
+                scrolledContainerColor = MaterialTheme.colorScheme.background
+            )
+        )
     }) { padding ->
         Column(Modifier
             .padding(padding)
