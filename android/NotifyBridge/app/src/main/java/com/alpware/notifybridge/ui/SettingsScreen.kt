@@ -27,6 +27,7 @@ import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Language
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.Notifications
+import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.Policy
 import androidx.compose.material.icons.outlined.Security
 import androidx.compose.material.icons.outlined.Store
@@ -101,6 +102,7 @@ fun SettingsScreen(
     macName: String,
     hasPairingSecret: Boolean,
     onBack: () -> Unit,
+    onOpenHistory: () -> Unit,
     onOpenNotificationSettings: () -> Unit,
     onRequestBatteryOptimizationIgnore: () -> Unit,
     onRequestPostNotificationPermission: () -> Unit,
@@ -159,6 +161,42 @@ fun SettingsScreen(
                     .padding(20.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
+
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(onClick = onOpenHistory),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)
+                ) {
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(18.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Outlined.History, contentDescription = null)
+                        Column(
+                            Modifier
+                                .weight(1f)
+                                .padding(horizontal = 14.dp)
+                        ) {
+                            Text(
+                                stringResource(R.string.settings_notification_history),
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            Text(
+                                stringResource(R.string.settings_notification_history_description),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Icon(
+                            Icons.AutoMirrored.Outlined.KeyboardArrowRight,
+                            contentDescription = null
+                        )
+                    }
+                }
+
                 PermissionManagementCard(
                     hasNotificationAccess = hasNotificationAccess,
                     isIgnoringBatteryOptimizations = isIgnoringBatteryOptimizations,
@@ -723,6 +761,7 @@ private fun NotificationAccessDisclosureDialog(
         }
     )
 }
+
 /**
  * Lets the user choose app appearance and language preferences.
  */
@@ -793,6 +832,7 @@ private fun AppearanceCard(
         )
     }
 }
+
 @Composable
 private fun LanguageModeDialog(
     currentLanguageMode: AppLanguageMode,
@@ -864,6 +904,7 @@ private fun LanguageModeDialog(
         confirmButton = {}
     )
 }
+
 @Composable
 private fun LanguageModeOption(
     title: String,
@@ -1068,6 +1109,7 @@ fun AppLanguageMode.languageTag(): String? {
         AppLanguageMode.ENGLISH -> "en"
     }
 }
+
 @Composable
 private fun LanguageRestartDialog(
     onDismiss: () -> Unit,

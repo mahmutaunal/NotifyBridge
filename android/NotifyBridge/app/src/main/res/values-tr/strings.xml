@@ -1,16 +1,16 @@
 <resources>
-    <string name="app_name">NotifyBridge</string>
+    <string name="app_name">Novi</string>
     <string name="notification_test_title">Bağlantı Testi</string>
     <string name="notification_test_message">Android cihaz Mac\'e başarıyla bağlandı.</string>
-    <string name="foreground_notification_title">NotifyBridge aktif</string>
+    <string name="foreground_notification_title">Novi aktif</string>
     <string name="foreground_notification_message">Android bildirimleri Mac cihazına aktarılıyor.</string>
-    <string name="foreground_channel_name">NotifyBridge Servisi</string>
-    <string name="foreground_channel_description">NotifyBridge arka plan bağlantı servisi</string>
+    <string name="foreground_channel_name">Novi Servisi</string>
+    <string name="foreground_channel_description">Novi arka plan bağlantı servisi</string>
     <string name="tile_status_active">Aktif</string>
     <string name="tile_status_inactive">Kapalı</string>
     <string name="qr_pairing_error_invalid_code">Geçersiz QR kod</string>
     <string name="qr_pairing_error_read_failed">QR okunamadı</string>
-    <string name="qr_pairing_scanner_prompt">NotifyBridge QR kodunu okut</string>
+    <string name="qr_pairing_scanner_prompt">Novi QR kodunu okut</string>
     <string name="qr_pairing_error_invalid_qr">Geçersiz QR kod</string>
     <string name="qr_pairing_error_missing_host">Host eksik</string>
     <string name="qr_pairing_error_missing_code">Kod eksik</string>
@@ -20,7 +20,7 @@
     <string name="notification_hidden_title">Yeni bildirim</string>
     <string name="notification_hidden_text">Bildirim içeriği gizlendi</string>
     <string name="notification_access_disclosure_title">Bildirim erişimi neden gerekli?</string>
-    <string name="notification_access_disclosure_message">NotifyBridge, Android bildirimlerini yalnızca senin eşleştirdiğin Mac cihazına yerel ağ üzerinden aktarabilmek için bildirim erişimine ihtiyaç duyar. Bildirim verileri buluta gönderilmez, üçüncü taraflarla paylaşılmaz ve aktarım sırasında şifrelenir.</string>
+    <string name="notification_access_disclosure_message">Novi, Android bildirimlerini yalnızca senin eşleştirdiğin Mac cihazına yerel ağ üzerinden aktarabilmek için bildirim erişimine ihtiyaç duyar. Bildirim verileri buluta gönderilmez, üçüncü taraflarla paylaşılmaz ve aktarım sırasında şifrelenir.</string>
     <string name="notification_access_disclosure_continue">Ayarları Aç</string>
     <string name="common_cancel">İptal</string>
     <string name="qr_pairing_error_missing_fingerprint">Güvenlik parmak izi eksik</string>
@@ -69,7 +69,7 @@
     <string name="home_connection_test_success_message">Mac cihazı ile bağlantı doğrulandı.</string>
     <string name="common_ok">Tamam</string>
     <string name="home_permissions_title">İzinler</string>
-    <string name="home_permissions_description">NotifyBridge’in doğru çalışması için eksik izinleri tamamla.</string>
+    <string name="home_permissions_description">Novi’nin doğru çalışması için eksik izinleri tamamla.</string>
     <string name="home_notification_access_title">Notification Access</string>
     <string name="home_notification_access_description">Android bildirimlerini okuyabilmek için gerekli.</string>
     <string name="home_open_settings_button">Ayarları Aç</string>
@@ -96,7 +96,7 @@
     <string name="settings_subtitle">Uygulama tercihlerinizi yönetin.</string>
     <string name="common_back">Geri</string>
     <string name="settings_permissions_title">İzinler</string>
-    <string name="settings_permissions_subtitle">NotifyBridge’in doğru çalışması için gerekli izinler.</string>
+    <string name="settings_permissions_subtitle">Novi’nin doğru çalışması için gerekli izinler.</string>
     <string name="settings_notification_access_title">Bildirim Erişimi</string>
     <string name="settings_notification_access_description">Android bildirimlerini okuyabilmek için gerekli.</string>
     <string name="settings_camera_permission_title">Kamera</string>
@@ -138,7 +138,7 @@
     <string name="settings_alpware_description">Minimal, gizlilik odaklı mobil araçlar</string>
     <string name="settings_google_play_description">AlpWare Studio uygulamalarını görüntüle</string>
     <string name="settings_appearance_title">Görünüm</string>
-    <string name="settings_appearance_subtitle">NotifyBridge\'in bu cihazda nasıl görüneceğini seçin.</string>
+    <string name="settings_appearance_subtitle">Novi\'nin bu cihazda nasıl görüneceğini seçin.</string>
     <string name="settings_theme_title">Uygulama Teması</string>
     <string name="settings_theme_description">Açık, koyu veya sistem ayarını takip et</string>
     <string name="settings_theme_dialog_title">Tema Seç</string>
@@ -157,13 +157,15 @@
     <string name="settings_language_turkish_description">Uygulamayı Türkçe kullan.</string>
     <string name="settings_language_english_title">English</string>
     <string name="settings_language_english_description">Uygulamayı İngilizce kullan.</string>
+    <string name="settings_notification_history">Bildirim Geçmişi</string>
+    <string name="settings_notification_history_description">Kaydedilen ve Mac’e iletilen bildirimleri görüntüleyin.</string>
 
     <string name="app_filter_title">Bildirim Filtreleri</string>
     <string name="app_filter_all_apps_subtitle">Tüm uygulama bildirimleri gönderilir.</string>
     <string name="app_filter_selected_apps_subtitle">%1$d uygulama seçili.</string>
     <string name="app_filter_apps_section_title">Uygulamalar</string>
     <string name="app_filter_info_title">Nasıl çalışır?</string>
-    <string name="app_filter_info_all_apps_description">Hiç uygulama seçilmezse NotifyBridge tüm uygulama bildirimlerini Mac cihazına gönderir.</string>
+    <string name="app_filter_info_all_apps_description">Hiç uygulama seçilmezse Novi tüm uygulama bildirimlerini Mac cihazına gönderir.</string>
     <string name="app_filter_info_selected_apps_description">Sadece seçili uygulamaların bildirimleri Mac cihazına gönderilir.</string>
     <string name="app_filter_search_label">Uygulama ara</string>
     <string name="app_filter_show_selected_only_title">Sadece seçilenleri göster</string>
@@ -178,6 +180,24 @@
     <string name="home_next_device">Sonraki cihaz</string>
     <string name="home_add_device_short">Cihaz ekle</string>
     <string name="home_add_mac_title">Yeni bir Mac ekle</string>
-    <string name="home_add_mac_description">Mac uygulamasında gösterilen QR kodu tarayarak başka bir Mac ile güvenli şekilde eşleştirin.</string>
+    <string name="home_add_mac_description">Bu Android cihazı Mac’inizdeki Novi ile güvenli şekilde nasıl eşleştirmek istediğinizi seçin.</string>
     <string name="home_add_mac_button">Yeni Mac eşleştir</string>
+    <string name="home_add_mac_qr_button">QR kodu tara</string>
+    <string name="home_add_mac_manual_button">Manuel ekle</string>
+    <string name="manual_pairing_title">Mac’i manuel ekle</string>
+    <string name="manual_pairing_heading">Manuel güvenli eşleştirme</string>
+    <string name="manual_pairing_description">Novi Mac uygulamasında gösterilen bağlantı bilgilerini girin. Herhangi bir eşleştirme verisi gönderilmeden önce TLS parmak izi doğrulanır.</string>
+    <string name="manual_pairing_name_label">Mac adı (isteğe bağlı)</string>
+    <string name="manual_pairing_name_support">Bu Mac’i kolayca tanımanızı sağlayan bir ad.</string>
+    <string name="manual_pairing_host_label">Mac IP adresi veya ana bilgisayar adı</string>
+    <string name="manual_pairing_host_error">Geçerli bir yerel IP adresi veya ana bilgisayar adı girin.</string>
+    <string name="manual_pairing_port_error">Port 1 ile 65535 arasında olmalıdır.</string>
+    <string name="manual_pairing_code_label">Eşleştirme kodu</string>
+    <string name="manual_pairing_code_support">Mac uygulamasında gösterilen güncel tek kullanımlık kodu girin.</string>
+    <string name="manual_pairing_fingerprint_label">TLS sertifika parmak izi</string>
+    <string name="manual_pairing_fingerprint_support">Mac uygulamasında gösterilen 64 karakterlik SHA-256 parmak izini girin. İki nokta ve boşluk kullanılabilir.</string>
+    <string name="manual_pairing_fingerprint_error">Geçerli, 64 karakterlik bir SHA-256 parmak izi girin.</string>
+    <string name="manual_pairing_button">Güvenli şekilde eşleştir</string>
+    <string name="manual_pairing_connecting">Eşleştiriliyor…</string>
+    <string name="manual_pairing_security_note">Güvenliğiniz için bu değerleri doğrudan eşleştirdiğiniz Mac üzerinden doğrulayın. Novi sertifika parmak izi doğrulamasını hiçbir zaman atlamaz.</string>
 </resources>

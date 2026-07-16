@@ -11,6 +11,7 @@ import Combine
 
 struct MenuBarContent: View {
 
+    @Environment(\.openWindow) private var openWindow
     @ObservedObject var server: LocalNotificationServer
     @StateObject private var launchAtLoginManager = LaunchAtLoginManager()
 
@@ -27,6 +28,14 @@ struct MenuBarContent: View {
                     )
 
                     PairedDeviceSection(server: server)
+                    Button {
+                        openWindow(id: "notification-history")
+                    } label: {
+                        Label("Bildirim Geçmişini Aç", systemImage: "clock.arrow.circlepath")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .padding(.top, 12)
                     FooterSection(server: server)
                 }
                 .padding(16)

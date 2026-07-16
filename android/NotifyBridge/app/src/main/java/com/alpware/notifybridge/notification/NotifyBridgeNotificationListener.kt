@@ -20,6 +20,8 @@ import com.alpware.notifybridge.core.DeviceNameResolver
 import com.alpware.notifybridge.core.MacConnectionStore
 import com.alpware.notifybridge.network.NotificationActionClient
 import com.alpware.notifybridge.network.NotificationRegistry
+import com.alpware.notifybridge.core.AndroidDeviceIdentity
+import com.alpware.notifybridge.history.NotificationHistoryRepository
 
 /**
  * Listens for Android notifications and forwards eligible ones to the paired Mac device.
@@ -42,9 +44,12 @@ class NotifyBridgeNotificationListener : NotificationListenerService() {
         override fun run() {
             if (!isActionPollingActive) return
 
-            val bridgeEnabled = BridgeStateStore.isBridgeEnabled(this@NotifyBridgeNotificationListener)
-            val hasPairing = MacConnectionStore.getMacIp(this@NotifyBridgeNotificationListener).isNotBlank() &&
-                    MacConnectionStore.getPairingToken(this@NotifyBridgeNotificationListener).isNotBlank()
+            val bridgeEnabled =
+                BridgeStateStore.isBridgeEnabled(this@NotifyBridgeNotificationListener)
+            val hasPairing =
+                MacConnectionStore.getMacIp(this@NotifyBridgeNotificationListener).isNotBlank() &&
+                        MacConnectionStore.getPairingToken(this@NotifyBridgeNotificationListener)
+                            .isNotBlank()
 
             if (bridgeEnabled && hasPairing) {
                 fetchPendingActions()
@@ -117,6 +122,7 @@ class NotifyBridgeNotificationListener : NotificationListenerService() {
         val replyAction = getReplyActionPayload(sbn)
 
         val payload = NotificationPayload(
+            deviceId = AndroidDeviceIdentity.get(this),
             packageName = sbn.packageName,
             appName = getAppName(sbn.packageName),
             title = title,
@@ -136,7 +142,8 @@ class NotifyBridgeNotificationListener : NotificationListenerService() {
 
         Log.d(TAG, "Bridge enabled. Notification received: $payload")
 
-        NotificationSender.send(this, payload)
+        val persistedPayload = NotificationHistoryRepository.get(this).upsert(payload)
+        NotificationSender.send(this, persistedPayload)
 
         fetchPendingActions()
     }
@@ -144,6 +151,7 @@ class NotifyBridgeNotificationListener : NotificationListenerService() {
     override fun onNotificationRemoved(sbn: StatusBarNotification) {
         super.onNotificationRemoved(sbn)
         NotificationRegistry.remove(sbn.key)
+        NotificationHistoryRepository.get(this).markRemoved(sbn.key)
         Log.d(TAG, "Notification removed: ${sbn.packageName}")
     }
 
@@ -252,6 +260,7 @@ class NotifyBridgeNotificationListener : NotificationListenerService() {
     companion object {
         // Shared log tag used for notification listener events.
         private const val TAG = "NotifyBridgeListener"
+
         // Poll interval used to synchronize notification actions.
         private const val ACTION_POLLING_INTERVAL_MS = 15_000L
     }

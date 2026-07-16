@@ -1,16 +1,16 @@
 <resources>
-    <string name="app_name">NotifyBridge</string>
+    <string name="app_name">Novi</string>
     <string name="notification_test_title">Connection Test</string>
     <string name="notification_test_message">Android device successfully connected to Mac.</string>
-    <string name="foreground_notification_title">NotifyBridge active</string>
+    <string name="foreground_notification_title">Novi active</string>
     <string name="foreground_notification_message">Android notifications are being forwarded to your Mac.</string>
-    <string name="foreground_channel_name">NotifyBridge Service</string>
-    <string name="foreground_channel_description">NotifyBridge background connection service</string>
+    <string name="foreground_channel_name">Novi Service</string>
+    <string name="foreground_channel_description">Novi background connection service</string>
     <string name="tile_status_active">Active</string>
     <string name="tile_status_inactive">Off</string>
     <string name="qr_pairing_error_invalid_code">Invalid QR code</string>
     <string name="qr_pairing_error_read_failed">Could not read QR code</string>
-    <string name="qr_pairing_scanner_prompt">Scan the NotifyBridge QR code</string>
+    <string name="qr_pairing_scanner_prompt">Scan the Novi QR code</string>
     <string name="qr_pairing_error_invalid_qr">Invalid QR code</string>
     <string name="qr_pairing_error_missing_host">Missing host</string>
     <string name="qr_pairing_error_missing_code">Missing code</string>
@@ -20,7 +20,7 @@
     <string name="notification_hidden_title">New notification</string>
     <string name="notification_hidden_text">Notification content hidden</string>
     <string name="notification_access_disclosure_title">Why is notification access required?</string>
-    <string name="notification_access_disclosure_message">NotifyBridge needs notification access only to forward Android notifications to your paired Mac over the local network. Notification data is not uploaded to the cloud, not shared with third parties, and is encrypted during transfer.</string>
+    <string name="notification_access_disclosure_message">Novi needs notification access only to forward Android notifications to your paired Mac over the local network. Notification data is not uploaded to the cloud, not shared with third parties, and is encrypted during transfer.</string>
     <string name="notification_access_disclosure_continue">Open Settings</string>
     <string name="common_cancel">Cancel</string>
     <string name="qr_pairing_error_missing_fingerprint">Security fingerprint is missing</string>
@@ -69,7 +69,7 @@
     <string name="home_connection_test_success_message">Connection with the Mac device has been verified.</string>
     <string name="common_ok">OK</string>
     <string name="home_permissions_title">Permissions</string>
-    <string name="home_permissions_description">Complete the missing permissions for NotifyBridge to work properly.</string>
+    <string name="home_permissions_description">Complete the missing permissions for Novi to work properly.</string>
     <string name="home_notification_access_title">Notification Access</string>
     <string name="home_notification_access_description">Required to read Android notifications.</string>
     <string name="home_open_settings_button">Open Settings</string>
@@ -96,7 +96,7 @@
     <string name="settings_subtitle">Manage your app preferences.</string>
     <string name="common_back">Back</string>
     <string name="settings_permissions_title">Permissions</string>
-    <string name="settings_permissions_subtitle">Permissions required for NotifyBridge to work properly.</string>
+    <string name="settings_permissions_subtitle">Permissions required for Novi to work properly.</string>
     <string name="settings_notification_access_title">Notification Access</string>
     <string name="settings_notification_access_description">Required to read Android notifications.</string>
     <string name="settings_camera_permission_title">Camera</string>
@@ -138,7 +138,7 @@
     <string name="settings_alpware_description">Minimal, privacy-focused mobile tools</string>
     <string name="settings_google_play_description">View AlpWare Studio apps</string>
     <string name="settings_appearance_title">Appearance</string>
-    <string name="settings_appearance_subtitle">Choose how NotifyBridge looks on this device.</string>
+    <string name="settings_appearance_subtitle">Choose how Novi looks on this device.</string>
     <string name="settings_theme_title">App Theme</string>
     <string name="settings_theme_description">Light, dark, or follow system setting</string>
     <string name="settings_theme_dialog_title">Choose Theme</string>
@@ -157,13 +157,15 @@
     <string name="settings_language_turkish_description">Use the app in Turkish.</string>
     <string name="settings_language_english_title">English</string>
     <string name="settings_language_english_description">Use the app in English.</string>
+    <string name="settings_notification_history">Notification History</string>
+    <string name="settings_notification_history_description">View notifications saved on your device and sent to your Mac.</string>
 
     <string name="app_filter_title">Notification Filters</string>
     <string name="app_filter_all_apps_subtitle">Notifications from all apps will be forwarded.</string>
     <string name="app_filter_selected_apps_subtitle">%1$d apps selected.</string>
     <string name="app_filter_apps_section_title">Applications</string>
     <string name="app_filter_info_title">How does it work?</string>
-    <string name="app_filter_info_all_apps_description">If no apps are selected, NotifyBridge forwards notifications from all apps to the Mac device.</string>
+    <string name="app_filter_info_all_apps_description">If no apps are selected, Novi forwards notifications from all apps to the Mac device.</string>
     <string name="app_filter_info_selected_apps_description">Only notifications from selected apps will be forwarded to the Mac device.</string>
     <string name="app_filter_search_label">Search apps</string>
     <string name="app_filter_show_selected_only_title">Show selected only</string>
@@ -178,6 +180,24 @@
     <string name="home_next_device">Next device</string>
     <string name="home_add_device_short">Add device</string>
     <string name="home_add_mac_title">Add a new Mac</string>
-    <string name="home_add_mac_description">Pair another Mac securely by scanning the QR code shown in the NotifyBridge Mac app.</string>
+    <string name="home_add_mac_description">Choose how you want to securely pair this Android device with Novi on your Mac.</string>
     <string name="home_add_mac_button">Pair new Mac</string>
+    <string name="home_add_mac_qr_button">Scan QR code</string>
+    <string name="home_add_mac_manual_button">Add manually</string>
+    <string name="manual_pairing_title">Add Mac manually</string>
+    <string name="manual_pairing_heading">Manual secure pairing</string>
+    <string name="manual_pairing_description">Enter the connection details displayed by the Novi Mac app. The TLS fingerprint is verified before any pairing data is exchanged.</string>
+    <string name="manual_pairing_name_label">Mac name (optional)</string>
+    <string name="manual_pairing_name_support">A name that helps you identify this Mac.</string>
+    <string name="manual_pairing_host_label">Mac IP address or hostname</string>
+    <string name="manual_pairing_host_error">Enter a valid local IP address or hostname.</string>
+    <string name="manual_pairing_port_error">Port must be between 1 and 65535.</string>
+    <string name="manual_pairing_code_label">Pairing code</string>
+    <string name="manual_pairing_code_support">Use the current one-time code shown in the Mac app.</string>
+    <string name="manual_pairing_fingerprint_label">TLS certificate fingerprint</string>
+    <string name="manual_pairing_fingerprint_support">Enter the 64-character SHA-256 fingerprint shown in the Mac app. Colons and spaces are accepted.</string>
+    <string name="manual_pairing_fingerprint_error">Enter a valid 64-character SHA-256 fingerprint.</string>
+    <string name="manual_pairing_button">Pair securely</string>
+    <string name="manual_pairing_connecting">Pairing…</string>
+    <string name="manual_pairing_security_note">For your security, verify these values directly on the Mac you are pairing. Novi never bypasses certificate fingerprint validation.</string>
 </resources>

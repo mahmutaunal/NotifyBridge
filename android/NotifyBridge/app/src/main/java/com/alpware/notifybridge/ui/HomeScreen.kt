@@ -25,13 +25,15 @@ import androidx.compose.material.icons.outlined.DesktopMac
 import androidx.compose.material.icons.outlined.FilterList
 import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.QrCodeScanner
+import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.ArrowBackIosNew
-import androidx.compose.material.icons.outlined.ArrowForwardIos
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.automirrored.outlined.ArrowForwardIos
 import androidx.compose.material.icons.outlined.FlashOn
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material3.HorizontalDivider
@@ -94,6 +96,7 @@ fun HomeScreen(
     onSaveMacConnection: (String, String, String) -> Unit,
     onSendTestNotification: () -> Unit,
     onScanPairingQr: () -> Unit,
+    onManualPairing: () -> Unit,
     onOpenNotificationSettings: () -> Unit,
     onRefreshConnection: () -> Unit,
     showNotificationContent: Boolean,
@@ -189,6 +192,7 @@ fun HomeScreen(
                         onSaveMacConnection(ipInput.trim(), portInput.trim(), tokenInput.trim())
                     },
                     onScanPairingQr = onScanPairingQr,
+                    onManualPairing = onManualPairing,
                     onSendTestNotification = onSendTestNotification,
                     onOpenNotificationSettings = { showNotificationAccessDisclosure = true },
                     onResetPairing = onResetPairing
@@ -260,6 +264,7 @@ private fun DeviceConnectionCarousel(
     onTokenChange: (String) -> Unit,
     onSaveAdvanced: () -> Unit,
     onScanPairingQr: () -> Unit,
+    onManualPairing: () -> Unit,
     onSendTestNotification: () -> Unit,
     onOpenNotificationSettings: () -> Unit,
     onResetPairing: () -> Unit
@@ -309,7 +314,7 @@ private fun DeviceConnectionCarousel(
                     onResetPairing = onResetPairing
                 )
             } else {
-                AddMacCard(onAddMac = onScanPairingQr)
+                AddMacCard(onScanQr = onScanPairingQr, onManualPairing = onManualPairing)
             }
         }
 
@@ -337,21 +342,24 @@ private fun DeviceConnectionCarousel(
                 enabled = pagerState.currentPage < pageCount - 1,
                 onClick = { scope.launch { pagerState.animateScrollToPage(pagerState.currentPage + 1) } }
             ) {
-                Icon(Icons.Outlined.ArrowForwardIos, contentDescription = stringResource(R.string.home_next_device))
+                Icon(Icons.AutoMirrored.Outlined.ArrowForwardIos, contentDescription = stringResource(R.string.home_next_device))
             }
         }
     }
 }
 
 @Composable
-private fun AddMacCard(onAddMac: () -> Unit) {
+private fun AddMacCard(
+    onScanQr: () -> Unit,
+    onManualPairing: () -> Unit
+) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(28.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)
     ) {
         Column(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 28.dp, vertical = 36.dp),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 28.dp, vertical = 32.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
@@ -368,10 +376,15 @@ private fun AddMacCard(onAddMac: () -> Unit) {
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-            Button(onClick = onAddMac, modifier = Modifier.fillMaxWidth()) {
-                Icon(Icons.Outlined.Add, contentDescription = null)
+            Button(onClick = onScanQr, modifier = Modifier.fillMaxWidth()) {
+                Icon(Icons.Outlined.QrCodeScanner, contentDescription = null)
                 Spacer(Modifier.width(8.dp))
-                Text(stringResource(R.string.home_add_mac_button))
+                Text(stringResource(R.string.home_add_mac_qr_button))
+            }
+            OutlinedButton(onClick = onManualPairing, modifier = Modifier.fillMaxWidth()) {
+                Icon(Icons.Outlined.Edit, contentDescription = null)
+                Spacer(Modifier.width(8.dp))
+                Text(stringResource(R.string.home_add_mac_manual_button))
             }
         }
     }
@@ -535,7 +548,7 @@ private fun NotificationPreferencesCard(
  */
 @Composable
 private fun PreferenceIcon(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    icon: ImageVector,
     contentDescription: String?
 ) {
     Box(

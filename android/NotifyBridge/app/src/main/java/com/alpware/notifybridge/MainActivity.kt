@@ -6,7 +6,6 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ApplicationInfo
-import android.content.pm.ResolveInfo
 import android.content.pm.PackageManager
 import android.graphics.Color
 import android.os.Build
@@ -51,10 +50,13 @@ import com.alpware.notifybridge.ui.AppFilterScreen
 import com.alpware.notifybridge.ui.AppLanguageMode
 import com.alpware.notifybridge.ui.AppThemeMode
 import com.alpware.notifybridge.ui.HomeScreen
+import com.alpware.notifybridge.ui.ManualPairingScreen
 import com.alpware.notifybridge.ui.QrScannerScreen
 import com.alpware.notifybridge.ui.SettingsScreen
 import com.alpware.notifybridge.ui.languageTag
 import com.alpware.notifybridge.ui.theme.NotifyBridgeTheme
+import com.alpware.notifybridge.history.NotificationHistoryRepository
+import com.alpware.notifybridge.history.NotificationHistoryScreen
 
 /**
  * Hosts the main Compose UI and coordinates permissions, pairing, and bridge state.
@@ -81,6 +83,8 @@ class MainActivity : ComponentActivity() {
     private val languageModeState = mutableStateOf(AppLanguageMode.SYSTEM)
     private val pairedMacsState = mutableStateOf<List<PairedMac>>(emptyList())
     private val selectedMacState = mutableStateOf<PairedMac?>(null)
+    private val manualPairingInProgressState = mutableStateOf(false)
+    private val manualPairingErrorState = mutableStateOf<String?>(null)
 
     // Refreshes permission-dependent state after the notification permission dialog closes.
     private val notificationPermissionLauncher =
@@ -182,6 +186,10 @@ class MainActivity : ComponentActivity() {
                             onScanPairingQr = {
                                 startQrPairing()
                             },
+                            onManualPairing = {
+                                manualPairingErrorState.value = null
+                                currentScreenState.value = AppScreen.ManualPairing
+                            },
                             onBridgeEnabledChanged = { enabled ->
                                 BridgeStateStore.setBridgeEnabled(this, enabled)
                                 bridgeEnabledState.value = enabled
@@ -235,6 +243,13 @@ class MainActivity : ComponentActivity() {
                         )
                     }
 
+                    AppScreen.History -> {
+                        NotificationHistoryScreen(
+                            repository = NotificationHistoryRepository.get(this),
+                            onBack = { currentScreenState.value = AppScreen.Settings }
+                        )
+                    }
+
                     AppScreen.Settings -> {
                         SettingsScreen(
                             hasNotificationAccess = hasNotificationAccessState.value,
@@ -247,6 +262,7 @@ class MainActivity : ComponentActivity() {
                             onBack = {
                                 currentScreenState.value = AppScreen.Home
                             },
+                            onOpenHistory = { currentScreenState.value = AppScreen.History },
                             onOpenNotificationSettings = {
                                 openNotificationAccessSettings()
                             },
@@ -307,6 +323,31 @@ class MainActivity : ComponentActivity() {
                             onQrScanned = { contents ->
                                 currentScreenState.value = AppScreen.Home
                                 handlePairingQr(contents)
+                            }
+                        )
+                    }
+
+                    AppScreen.ManualPairing -> {
+                        ManualPairingScreen(
+                            isPairing = manualPairingInProgressState.value,
+                            errorMessage = manualPairingErrorState.value,
+                            onBack = {
+                                manualPairingErrorState.value = null
+                                currentScreenState.value = AppScreen.Home
+                            },
+                            onPair = { host, port, code, fingerprint, name ->
+                                manualPairingErrorState.value = null
+                                pairWithMac(
+                                    payload = PairingPayload(
+                                        host = host,
+                                        port = port,
+                                        code = code,
+                                        name = name,
+                                        fingerprint = fingerprint
+                                    ),
+                                    returnHomeOnSuccess = true,
+                                    isManual = true
+                                )
                             }
                         )
                     }
@@ -407,59 +448,71 @@ class MainActivity : ComponentActivity() {
         runCatching {
             parsePairingQr(contents)
         }.onSuccess { payload ->
-            sendResultState.value = SendResult.Loading
-
-            PairingClient.pair(
-                context = this,
-                host = payload.host,
-                port = payload.port,
-                code = payload.code,
-                fingerprint = payload.fingerprint
-            ) { result ->
-                runOnUiThread {
-                    result.onSuccess { response ->
-                        if (response.type == "notifybridge_pairing_response") {
-                            MacConnectionStore.setMacIp(this, response.host)
-                            MacConnectionStore.setMacPort(this, response.port.toString())
-                            MacConnectionStore.setPairingToken(this, response.secret)
-                            MacConnectionStore.setMacName(
-                                this,
-                                response.name.ifBlank { payload.name ?: response.host }
-                            )
-                            MacConnectionStore.setMacCertFingerprint(this, payload.fingerprint)
-                            PairedMacStore.upsert(
-                                this,
-                                PairedMac(
-                                    id = UUID.randomUUID().toString(),
-                                    name = response.name.ifBlank { payload.name ?: response.host },
-                                    host = response.host,
-                                    port = response.port,
-                                    secret = response.secret,
-                                    fingerprint = payload.fingerprint
-                                )
-                            )
-                            refreshPairedMacs()
-
-                            BridgeStateStore.setBridgeEnabled(this, true)
-                            bridgeEnabledState.value = true
-                            requestPostNotificationPermissionIfNeeded()
-                            BridgeServiceController.start(this)
-                            checkMacHealth()
-                            sendResultState.value = SendResult.Success
-                        } else {
-                            sendResultState.value = SendResult.Error(
-                                getString(R.string.qr_pairing_error_invalid_response)
-                            )
-                        }
-                    }.onFailure {
-                        sendResultState.value = SendResult.Error(
-                            it.message ?: getString(R.string.qr_pairing_error_pairing_failed)
-                        )
-                    }
-                }
-            }
+            pairWithMac(payload = payload, returnHomeOnSuccess = false, isManual = false)
         }.onFailure {
             sendResultState.value = SendResult.Error(getString(R.string.qr_pairing_error_read_failed))
+        }
+    }
+
+    /** Executes the shared secure pairing flow for both QR and manual entry. */
+    private fun pairWithMac(
+        payload: PairingPayload,
+        returnHomeOnSuccess: Boolean,
+        isManual: Boolean
+    ) {
+        sendResultState.value = SendResult.Loading
+        if (isManual) manualPairingInProgressState.value = true
+
+        PairingClient.pair(
+            context = this,
+            host = payload.host,
+            port = payload.port,
+            code = payload.code,
+            fingerprint = payload.fingerprint
+        ) { result ->
+            runOnUiThread {
+                if (isManual) manualPairingInProgressState.value = false
+
+                result.onSuccess { response ->
+                    if (response.type == "notifybridge_pairing_response") {
+                        val resolvedName = response.name.ifBlank { payload.name ?: response.host }
+                        MacConnectionStore.setMacIp(this, response.host)
+                        MacConnectionStore.setMacPort(this, response.port.toString())
+                        MacConnectionStore.setPairingToken(this, response.secret)
+                        MacConnectionStore.setMacName(this, resolvedName)
+                        MacConnectionStore.setMacCertFingerprint(this, payload.fingerprint)
+                        PairedMacStore.upsert(
+                            this,
+                            PairedMac(
+                                id = UUID.randomUUID().toString(),
+                                name = resolvedName,
+                                host = response.host,
+                                port = response.port,
+                                secret = response.secret,
+                                fingerprint = payload.fingerprint
+                            )
+                        )
+                        refreshPairedMacs()
+
+                        BridgeStateStore.setBridgeEnabled(this, true)
+                        bridgeEnabledState.value = true
+                        requestPostNotificationPermissionIfNeeded()
+                        BridgeServiceController.start(this)
+                        checkMacHealth()
+                        sendResultState.value = SendResult.Success
+                        manualPairingErrorState.value = null
+                        if (returnHomeOnSuccess) currentScreenState.value = AppScreen.Home
+                    } else {
+                        val message = getString(R.string.qr_pairing_error_invalid_response)
+                        sendResultState.value = SendResult.Error(message)
+                        if (isManual) manualPairingErrorState.value = message
+                    }
+                }.onFailure { error ->
+                    val message = error.message ?: getString(R.string.qr_pairing_error_pairing_failed)
+                    sendResultState.value = SendResult.Error(message)
+                    if (isManual) manualPairingErrorState.value = message
+                }
+            }
         }
     }
 
@@ -645,7 +698,9 @@ class MainActivity : ComponentActivity() {
     private enum class AppScreen {
         Home,
         Settings,
+        History,
         AppFilters,
-        Scanner
+        Scanner,
+        ManualPairing
     }
 }

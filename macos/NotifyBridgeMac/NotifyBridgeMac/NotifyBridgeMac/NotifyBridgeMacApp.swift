@@ -32,5 +32,10 @@ struct NotifyBridgeMacApp: App {
             MenuBarContent(server: server)
         }
         .menuBarExtraStyle(.window)
+
+        Window("Bildirim Geçmişi", id: "notification-history") {
+            NotificationHistoryView()
+        }
+        .defaultSize(width: 900, height: 600)
     }
 }

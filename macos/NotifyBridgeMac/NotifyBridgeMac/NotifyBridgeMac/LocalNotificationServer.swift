@@ -77,6 +77,7 @@ final class LocalNotificationServer: ObservableObject {
     private let port: NWEndpoint.Port = 8787
     private var listener: NWListener?
     private let presenter = NotificationPresenter()
+    private lazy var ingressService = NotificationIngressService(presenter: presenter)
     let pairedDevices = PairedAndroidDeviceStore.shared
     private let bonjourPublisher = BonjourPublisher()
     
@@ -318,25 +319,31 @@ final class LocalNotificationServer: ObservableObject {
                 from: decryptedData
             )
             
-            DispatchQueue.main.async {
-                self.lastPayloadText = """
-                \(payload.appName ?? payload.packageName)
-                \(payload.title ?? "")
-                \(payload.text ?? "")
-                """
+            let deviceId = headerValue("X-NotifyBridge-Device-Id", from: requestText)
+                ?? payload.deviceId
+                ?? "unknown-device"
+
+            ingressService.handle(
+                payload: payload,
+                deviceId: deviceId,
+                shouldPresent: notificationsEnabled
+            ) { result in
+                switch result {
+                case .success:
+                    DispatchQueue.main.async {
+                        self.lastPayloadText = """
+                        \(payload.appName ?? payload.packageName)
+                        \(payload.title ?? "")
+                        \(payload.text ?? "")
+                        """
+                    }
+                    self.markPairingCompleted(connection: connection, deviceName: payload.deviceName)
+                    self.sendOk(connection)
+                case .failure(let error):
+                    print("History persistence error:", error.localizedDescription)
+                    self.sendServerError(connection)
+                }
             }
-
-            print("Received notification:", payload)
-
-            markPairingCompleted(connection: connection, deviceName: payload.deviceName)
-
-            if notificationsEnabled {
-                presenter.show(payload: payload)
-            } else {
-                print("Notification received but Mac notifications are disabled.")
-            }
-
-            sendOk(connection)
 
         } catch {
             print("JSON decode error:", error.localizedDescription)
@@ -372,6 +379,11 @@ final class LocalNotificationServer: ObservableObject {
             UserDefaults.standard.set(self.lastClientName, forKey: "lastClientName")
             UserDefaults.standard.set(Date(), forKey: "lastConnectionDate")
         }
+    }
+
+    private func sendServerError(_ connection: NWConnection) {
+        let response = "HTTP/1.1 500 Internal Server Error\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+        connection.send(content: response.data(using: .utf8), completion: .contentProcessed { _ in connection.cancel() })
     }
 
     private func sendOk(_ connection: NWConnection) {

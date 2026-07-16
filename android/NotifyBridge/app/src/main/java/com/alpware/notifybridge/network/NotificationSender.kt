@@ -8,6 +8,7 @@ import com.alpware.notifybridge.core.AndroidDeviceIdentity
 import com.alpware.notifybridge.core.PairedMacStore
 import com.alpware.notifybridge.model.PairedMac
 import com.alpware.notifybridge.notification.NotificationPayload
+import com.alpware.notifybridge.history.NotificationHistoryRepository
 import com.google.gson.Gson
 import java.io.OutputStreamWriter
 import java.util.UUID
@@ -32,9 +33,17 @@ object NotificationSender {
             Log.d(TAG, "No enabled paired Mac. Notification not sent.")
             return
         }
-        targets.forEach { mac ->
-            Thread { runCatching { sendPayload(context, mac, payload) }
-                .onFailure { Log.e(TAG, "Send to ${mac.displayName} failed: ${it.message}", it) } }.start()
+        val repository = NotificationHistoryRepository.get(context)
+        repository.markDeliveryAttempt(payload.historyId)
+        targets.forEachIndexed { index, mac ->
+            Thread {
+                runCatching { sendPayload(context, mac, payload) }
+                    .onSuccess { if (index == 0) repository.markDelivered(payload.historyId) }
+                    .onFailure {
+                        if (index == 0) repository.markFailed(payload.historyId)
+                        Log.e(TAG, "Send to ${mac.displayName} failed: ${it.message}", it)
+                    }
+            }.start()
         }
     }
 
@@ -71,7 +80,10 @@ object NotificationSender {
         connection.requestMethod = "POST"
         connection.doOutput = true
         connection.setRequestProperty("Content-Type", "application/json")
-        connection.setRequestProperty("X-NotifyBridge-Device-Id", AndroidDeviceIdentity.get(context))
+        connection.setRequestProperty(
+            "X-NotifyBridge-Device-Id",
+            AndroidDeviceIdentity.get(context)
+        )
         connection.setRequestProperty("X-NotifyBridge-Timestamp", timestamp)
         connection.setRequestProperty("X-NotifyBridge-Nonce", nonce)
         connection.setRequestProperty("X-NotifyBridge-Signature", signature)
@@ -84,6 +96,9 @@ object NotificationSender {
     private fun hmacSha256Base64(secret: String, message: String): String {
         val mac = Mac.getInstance("HmacSHA256")
         mac.init(SecretKeySpec(secret.toByteArray(Charsets.UTF_8), "HmacSHA256"))
-        return Base64.encodeToString(mac.doFinal(message.toByteArray(Charsets.UTF_8)), Base64.NO_WRAP)
+        return Base64.encodeToString(
+            mac.doFinal(message.toByteArray(Charsets.UTF_8)),
+            Base64.NO_WRAP
+        )
     }
 }

@@ -9,6 +9,10 @@ import Foundation
 
 /// Represents a decrypted notification received from the paired Android device.
 struct NotificationPayload: Codable {
+    let protocolVersion: Int?
+    let historyId: String?
+    let eventType: String?
+    let deviceId: String?
     let packageName: String
     let appName: String?
     let title: String?
