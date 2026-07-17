@@ -363,21 +363,33 @@ private struct PairedAndroidDeviceCard: View {
 
             Divider()
 
-            Toggle(isOn: Binding(
-                get: { device.isEnabled },
-                set: onEnabledChanged
-            )) {
+            HStack(spacing: 16) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(String(localized: "Bildirimleri Kabul Et"))
                         .font(.system(size: 13, weight: .semibold))
-                    Text(device.isEnabled
-                         ? String(localized: "Bu cihazdan gelen bildirimler etkin.")
-                         : String(localized: "Bu cihaz geçici olarak devre dışı."))
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
+
+                    Text(
+                        device.isEnabled
+                            ? String(localized: "Bu cihazdan gelen bildirimler etkin.")
+                            : String(localized: "Bu cihaz geçici olarak devre dışı.")
+                    )
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
                 }
+
+                Spacer(minLength: 16)
+
+                Toggle(
+                    "",
+                    isOn: Binding(
+                        get: { device.isEnabled },
+                        set: onEnabledChanged
+                    )
+                )
+                .labelsHidden()
+                .toggleStyle(.switch)
             }
-            .toggleStyle(.switch)
+            .frame(maxWidth: .infinity)
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)

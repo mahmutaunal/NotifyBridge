@@ -7,7 +7,6 @@ import com.alpware.notifybridge.pairing.PairingRequest
 import com.alpware.notifybridge.pairing.PairingResponse
 import com.google.gson.Gson
 import java.net.URL
-import java.security.MessageDigest
 import java.security.cert.X509Certificate
 import javax.net.ssl.HttpsURLConnection
 import javax.net.ssl.SSLContext
@@ -31,7 +30,7 @@ object PairingClient {
     ) {
         Thread {
             runCatching {
-                val url = URL("https://$host:$port/pair")
+                val url = URL("https://${formatHostForUrl(host)}:$port/pair")
                 // Include a readable Android device name for the Mac pairing UI.
                 val request = PairingRequest(
                     code = code,
@@ -89,7 +88,10 @@ private fun openPinnedConnection(
     url: URL,
     expectedFingerprint: String
 ): HttpsURLConnection {
-    val normalizedExpectedFingerprint = expectedFingerprint.lowercase()
+    val normalizedExpectedFingerprint = normalizeFingerprint(expectedFingerprint)
+    require(normalizedExpectedFingerprint.matches(Regex("[0-9a-f]{64}"))) {
+        "Expected TLS fingerprint must be a SHA-256 fingerprint"
+    }
 
     val trustManager = object : X509TrustManager {
         override fun checkClientTrusted(
@@ -104,9 +106,11 @@ private fun openPinnedConnection(
             val certificate = chain?.firstOrNull()
                 ?: error("Server certificate is missing")
 
-            val actualFingerprint = certificate.sha256Fingerprint()
-
-            if (actualFingerprint != normalizedExpectedFingerprint) {
+            if (!constantTimeEquals(
+                    certificate.sha256Fingerprint(),
+                    normalizedExpectedFingerprint
+                )
+            ) {
                 error("TLS fingerprint mismatch")
             }
         }
@@ -119,15 +123,9 @@ private fun openPinnedConnection(
 
     return (url.openConnection() as HttpsURLConnection).apply {
         sslSocketFactory = sslContext.socketFactory
-        hostnameVerifier = { _, _ -> true }
-    }
-}
-
-private fun X509Certificate.sha256Fingerprint(): String {
-    val digest = MessageDigest.getInstance("SHA-256")
-        .digest(encoded)
-
-    return digest.joinToString("") { byte ->
-        "%02x".format(byte)
+        hostnameVerifier = PinnedHostnameVerifier(
+            expectedHost = url.host,
+            expectedFingerprint = normalizedExpectedFingerprint
+        )
     }
 }

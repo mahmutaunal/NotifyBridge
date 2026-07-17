@@ -42,8 +42,8 @@ import com.alpware.notifybridge.core.LocaleContextWrapper
 import com.alpware.notifybridge.core.PrivacyStore
 import com.alpware.notifybridge.core.ThemeStore
 import com.alpware.notifybridge.model.InstalledAppItem
-import com.alpware.notifybridge.network.ConnectionHealthClient
 import com.alpware.notifybridge.network.ConnectionHealthResult
+import com.alpware.notifybridge.network.ConnectionRecoveryManager
 import com.alpware.notifybridge.network.PairingClient
 import com.alpware.notifybridge.network.UnpairClient
 import com.alpware.notifybridge.ui.AppFilterScreen
@@ -56,7 +56,7 @@ import com.alpware.notifybridge.ui.SettingsScreen
 import com.alpware.notifybridge.ui.languageTag
 import com.alpware.notifybridge.ui.theme.NotifyBridgeTheme
 import com.alpware.notifybridge.history.NotificationHistoryRepository
-import com.alpware.notifybridge.history.NotificationHistoryScreen
+import com.alpware.notifybridge.ui.NotificationHistoryScreen
 
 /**
  * Hosts the main Compose UI and coordinates permissions, pairing, and bridge state.
@@ -654,19 +654,14 @@ class MainActivity : ComponentActivity() {
 
         isRefreshingConnectionState.value = true
 
-        ConnectionHealthClient.check(this) { result ->
+        ConnectionRecoveryManager.recover(this) { result ->
             runOnUiThread {
                 isRefreshingConnectionState.value = false
+                refreshPairedMacs()
 
                 when (result) {
-                    ConnectionHealthResult.Online -> {
-                        macOnlineState.value = true
-                    }
-
-                    ConnectionHealthResult.Offline -> {
-                        macOnlineState.value = false
-                    }
-
+                    ConnectionHealthResult.Online -> macOnlineState.value = true
+                    ConnectionHealthResult.Offline -> macOnlineState.value = false
                     ConnectionHealthResult.PairingInvalid -> {
                         macOnlineState.value = false
                         clearPairingLocally()

@@ -14,6 +14,7 @@ import UserNotifications
 struct NotifyBridgeMacApp: App {
 
     @StateObject private var server: LocalNotificationServer
+    private let lifecycleCoordinator: ServerLifecycleCoordinator
 
     init() {
         UNUserNotificationCenter.current().delegate = NotificationActionHandler.shared
@@ -25,6 +26,7 @@ struct NotifyBridgeMacApp: App {
         // Start listening immediately when the app launches.
         localServer.start()
         _server = StateObject(wrappedValue: localServer)
+        lifecycleCoordinator = ServerLifecycleCoordinator(server: localServer)
     }
 
     var body: some Scene {

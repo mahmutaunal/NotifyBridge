@@ -1,4 +1,4 @@
-package com.alpware.notifybridge.history
+package com.alpware.notifybridge.ui
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -8,8 +8,10 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.alpware.notifybridge.history.NotificationHistoryRepository
 import java.text.DateFormat
 import java.util.Date
 
@@ -59,7 +61,7 @@ fun NotificationHistoryScreen(repository: NotificationHistoryRepository, onBack:
             )
             if (records.isEmpty()) Box(
                 Modifier.fillMaxSize(),
-                contentAlignment = androidx.compose.ui.Alignment.Center
+                contentAlignment = Alignment.Center
             ) {
                 Text(
                     "Henüz kayıtlı bildirim yok.",
@@ -104,7 +106,7 @@ fun NotificationHistoryScreen(repository: NotificationHistoryRepository, onBack:
                             )
                             TextButton(
                                 onClick = { repository.delete(item.historyId); refresh++ },
-                                modifier = Modifier.align(androidx.compose.ui.Alignment.End)
+                                modifier = Modifier.align(Alignment.End)
                             ) { Text("Sil") }
                         }
                     }

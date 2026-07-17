@@ -5,13 +5,12 @@ import android.content.Context
 import com.alpware.notifybridge.core.PairedMacStore
 import com.alpware.notifybridge.model.PairedMac
 import java.net.URL
-import java.security.MessageDigest
 import java.security.cert.X509Certificate
 import javax.net.ssl.HttpsURLConnection
 import javax.net.ssl.SSLContext
 import javax.net.ssl.X509TrustManager
 
-/** Creates HTTPS connections secured with a per-device certificate fingerprint pin. */
+/** Creates HTTPS connections secured with a per-device SHA-256 certificate pin. */
 object PinnedHttpsClient {
     fun openConnection(
         context: Context,
@@ -32,29 +31,55 @@ object PinnedHttpsClient {
         readTimeout: Int = 3000
     ): HttpsURLConnection {
         require(mac.host.isNotBlank()) { "Mac IP is empty" }
-        require(mac.fingerprint.isNotBlank()) { "Mac TLS fingerprint is empty" }
-        val expectedFingerprint = mac.fingerprint.lowercase()
+        require(mac.port in 1..65535) { "Mac port is invalid" }
+        require(path.startsWith('/')) { "Request path must start with /" }
 
-        val trustManager = @SuppressLint("CustomX509TrustManager") object : X509TrustManager {
-            override fun checkClientTrusted(chain: Array<out X509Certificate>?, authType: String?) = Unit
-            override fun checkServerTrusted(chain: Array<out X509Certificate>?, authType: String?) {
-                val certificate = chain?.firstOrNull() ?: error("Server certificate is missing")
-                if (certificate.sha256Fingerprint() != expectedFingerprint) error("TLS fingerprint mismatch")
+        val expectedFingerprint = normalizeFingerprint(mac.fingerprint)
+        require(expectedFingerprint.matches(Regex("[0-9a-f]{64}"))) {
+            "Mac TLS fingerprint must be a SHA-256 fingerprint"
+        }
+
+        val trustManager = @SuppressLint("CustomX509TrustManager")
+        object : X509TrustManager {
+            override fun checkClientTrusted(
+                chain: Array<out X509Certificate>?,
+                authType: String?
+            ) = Unit
+
+            override fun checkServerTrusted(
+                chain: Array<out X509Certificate>?,
+                authType: String?
+            ) {
+                val certificate = chain?.firstOrNull()
+                    ?: error("Server certificate is missing")
+
+                if (!constantTimeEquals(
+                        certificate.sha256Fingerprint(),
+                        expectedFingerprint
+                    )
+                ) {
+                    error("TLS fingerprint mismatch")
+                }
             }
+
             override fun getAcceptedIssuers(): Array<X509Certificate> = emptyArray()
         }
 
         val sslContext = SSLContext.getInstance("TLS")
         sslContext.init(null, arrayOf(trustManager), null)
-        val url = URL("https://${mac.host}:${mac.port}$path")
+
+        val url = URL(
+            "https://${formatHostForUrl(mac.host)}:${mac.port}$path"
+        )
+
         return (url.openConnection() as HttpsURLConnection).apply {
             sslSocketFactory = sslContext.socketFactory
-            hostnameVerifier = { _, _ -> true }
+            hostnameVerifier = PinnedHostnameVerifier(
+                expectedHost = mac.host,
+                expectedFingerprint = expectedFingerprint
+            )
             this.connectTimeout = connectTimeout
             this.readTimeout = readTimeout
         }
     }
-
-    private fun X509Certificate.sha256Fingerprint(): String = MessageDigest.getInstance("SHA-256")
-        .digest(encoded).joinToString("") { "%02x".format(it) }
 }

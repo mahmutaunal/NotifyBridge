@@ -119,20 +119,25 @@ final class LocalNotificationServer: ObservableObject {
                 self?.handle(connection)
             }
 
-            listener.stateUpdateHandler = { [weak self] state in
+            listener.stateUpdateHandler = { [weak self, weak listener] state in
                 DispatchQueue.main.async {
+                    guard let self, let listener, self.listener === listener else { return }
                     switch state {
                     case .ready:
-                        self?.isRunning = true
-                        self?.bonjourPublisher.start()
+                        self.isRunning = true
+                        self.bonjourPublisher.start()
                         print("NotifyBridge server running on port 8787")
 
                     case .failed(let error):
-                        self?.isRunning = false
+                        self.isRunning = false
+                        self.bonjourPublisher.stop()
+                        self.listener = nil
                         print("Server failed:", error.localizedDescription)
 
                     case .cancelled:
-                        self?.isRunning = false
+                        self.isRunning = false
+                        self.bonjourPublisher.stop()
+                        self.listener = nil
                         print("Server cancelled")
 
                     default:
@@ -146,6 +151,14 @@ final class LocalNotificationServer: ObservableObject {
 
         } catch {
             print("Failed to start server:", error.localizedDescription)
+        }
+    }
+
+    /// Rebinds the listener and republishes Bonjour after wake or network changes.
+    func restart() {
+        stop()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [weak self] in
+            self?.start()
         }
     }
 
